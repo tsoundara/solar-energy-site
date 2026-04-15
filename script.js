@@ -15,7 +15,7 @@ document.querySelectorAll('.chapter').forEach(s => {
 });
 
 // ── ACTIVE NAV ──
-const sections = ['sunlight', 'cells', 'inverter', 'storage', 'grid'];
+const sections = ['sunlight','cells','inverter','storage','grid'];
 const navLinks = document.querySelectorAll('.nav-steps a');
 
 function updateNav() {
@@ -30,19 +30,20 @@ function updateNav() {
 }
 
 // ── PHOTON RAIN INTERACTIVE ──
-(function () {
-  const stage        = document.getElementById('photonStage');
-  const canvas       = document.getElementById('photonCanvas');
-  const cloudSVG     = document.getElementById('cloudLayer');
-  const panel        = document.getElementById('photonPanel');
-  const slider       = document.getElementById('cloudSlider');
-  const cloudVal     = document.getElementById('cloudVal');
-  const pStatCloud   = document.getElementById('pStatCloud');
-  const pStatPhotons = document.getElementById('pStatPhotons');
-  const pStatOutput  = document.getElementById('pStatOutput');
-  const pStatCond    = document.getElementById('pStatCond');
-  const pPowerFill   = document.getElementById('pPowerFill');
-  const noteEl       = document.getElementById('photonNote');
+function initPhotonInteractive(sid) {
+  const sfx = '-' + sid;
+  const stage    = document.getElementById('photonStage'  + sfx);
+  const canvas   = document.getElementById('photonCanvas' + sfx);
+  const cloudSVG = document.getElementById('cloudLayer'   + sfx);
+  const panel    = document.getElementById('photonPanel'  + sfx);
+  const slider   = document.getElementById('cloudSlider'  + sfx);
+  const cloudVal = document.getElementById('cloudVal'     + sfx);
+  const pStatCloud   = document.getElementById('pStatCloud'   + sfx);
+  const pStatPhotons = document.getElementById('pStatPhotons' + sfx);
+  const pStatOutput  = document.getElementById('pStatOutput'  + sfx);
+  const pStatCond    = document.getElementById('pStatCond'    + sfx);
+  const pPowerFill   = document.getElementById('pPowerFill'   + sfx);
+  const noteEl       = document.getElementById('photonNote'   + sfx);
 
   if (!stage) return;
 
@@ -144,7 +145,7 @@ function updateNav() {
     }
 
     if (photons.length > 400) photons.splice(0, photons.length - 400);
-    panel.classList.toggle('lit', hitCount > 0);
+    if (hitCount > 0) { panel.classList.add('lit'); } else { panel.classList.remove('lit'); }
 
     requestAnimationFrame(tick);
   }
@@ -179,8 +180,9 @@ function updateNav() {
   }
 
   slider.addEventListener('input', () => update(slider.value));
-
   update(0);
   tick();
   window.addEventListener('resize', () => drawClouds(stage.offsetWidth, cloudCover));
-})();
+}
+
+['sunlight', 'cells', 'inverter', 'storage', 'grid'].forEach(initPhotonInteractive);
