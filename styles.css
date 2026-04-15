@@ -179,6 +179,10 @@ nav {
   padding: 7rem 3rem;
   border-bottom: 1px solid var(--rule);
   position: relative;
+}
+
+/* Animation state applied by JS — chapters remain visible if JS fails to load */
+.chapter.will-animate {
   opacity: 0;
   transform: translateY(30px);
   transition: opacity 0.7s ease, transform 0.7s ease;
