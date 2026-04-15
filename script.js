@@ -50,6 +50,16 @@ function initPhotonInteractive(sid) {
   const ctx = canvas.getContext('2d');
   let cloudCover = 0;
   let photons = [];
+  let W = 0, H = 0;
+  let rafId = null;
+
+  // ── Canvas sizing — only on resize, not every frame ──
+  function resize() {
+    W = canvas.width  = stage.offsetWidth;
+    H = canvas.height = stage.offsetHeight;
+    drawClouds(cloudCover);
+  }
+  window.addEventListener('resize', resize);
 
   const cloudDefs = [
     { cx: 0.18, cy: 0.28, rx: 0.13, ry: 0.07 },
@@ -60,7 +70,7 @@ function initPhotonInteractive(sid) {
     { cx: 0.88, cy: 0.18, rx: 0.09, ry: 0.05 }
   ];
 
-  function drawClouds(W, cover) {
+  function drawClouds(cover) {
     cloudSVG.setAttribute('width', W);
     cloudSVG.innerHTML = '';
     const visible = Math.round(cover / 100 * cloudDefs.length);
@@ -77,7 +87,9 @@ function initPhotonInteractive(sid) {
     }
   }
 
-  function spawnPhoton(W) {
+  const CLOUD_BOTTOM = 120 * 0.35; // y where blocked photons stop and fade
+
+  function spawnPhoton() {
     const passChance = 1 - cloudCover / 100;
     return {
       x: Math.random() * W,
@@ -90,65 +102,86 @@ function initPhotonInteractive(sid) {
     };
   }
 
-  function panelY(H) { return H - 56 - 8; }
+  function panelY() { return H - 56 - 8; }
 
   function tick() {
-    const W = canvas.width  = stage.offsetWidth;
-    const H = canvas.height = stage.offsetHeight;
     ctx.clearRect(0, 0, W, H);
 
     const rate = Math.round(1 + (1 - cloudCover / 100) * 5);
-    for (let i = 0; i < rate; i++) photons.push(spawnPhoton(W));
+    for (let i = 0; i < rate; i++) photons.push(spawnPhoton());
 
-    const pY = panelY(H);
+    const pY = panelY();
     const pX = W / 2;
     const pHalfW = 80;
     let hitCount = 0;
 
     for (let i = photons.length - 1; i >= 0; i--) {
       const p = photons[i];
-      p.x += p.vx;
-      p.y += p.vy;
 
+      // Blocked photons: stop moving at cloud boundary and fade out there
       if (p.blocked) {
-        const cloudBottom = 120 * 0.35;
-        if (p.y > cloudBottom) {
+        if (p.y < CLOUD_BOTTOM) {
+          p.x += p.vx;
+          p.y += p.vy;
+        } else {
           p.alpha -= 0.06;
           if (p.alpha <= 0) { photons.splice(i, 1); continue; }
         }
+        // draw fading blocked photon
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,200,220,${p.alpha * 0.5})`;
+        ctx.fill();
+        continue;
       }
 
-      if (!p.blocked && p.y >= pY - 10 && p.y <= pY + 10 && p.x >= pX - pHalfW && p.x <= pX + pHalfW) {
+      // Unblocked photons fall normally
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Hit panel?
+      if (p.y >= pY - 10 && p.y <= pY + 10 && p.x >= pX - pHalfW && p.x <= pX + pHalfW) {
         hitCount++;
         photons.splice(i, 1);
         continue;
       }
 
+      // Off screen?
       if (p.y > H || p.x < -10 || p.x > W + 10) {
         photons.splice(i, 1);
         continue;
       }
 
+      // Draw unblocked photon with glow
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.blocked
-        ? `rgba(200,200,220,${p.alpha * 0.5})`
-        : `rgba(255,240,140,${p.alpha})`;
+      ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
       ctx.fill();
 
-      if (!p.blocked) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(232,200,74,${p.alpha * 0.12})`;
-        ctx.fill();
-      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,200,74,${p.alpha * 0.12})`;
+      ctx.fill();
     }
 
     if (photons.length > 400) photons.splice(0, photons.length - 400);
-    if (hitCount > 0) { panel.classList.add('lit'); } else { panel.classList.remove('lit'); }
+    panel.classList.toggle('lit', hitCount > 0);
 
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
   }
+
+  // ── Only animate while the stage is in the viewport ──
+  const visObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        if (!rafId) { resize(); rafId = requestAnimationFrame(tick); }
+      } else {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        photons = []; // clear stale particles when hidden
+      }
+    });
+  }, { threshold: 0 });
+  visObs.observe(stage);
 
   function update(val) {
     cloudCover = +val;
@@ -176,13 +209,11 @@ function initPhotonInteractive(sid) {
       el.classList.toggle('low', cloudCover > 60);
     });
 
-    drawClouds(stage.offsetWidth, cloudCover);
+    drawClouds(cloudCover);
   }
 
   slider.addEventListener('input', () => update(slider.value));
   update(0);
-  tick();
-  window.addEventListener('resize', () => drawClouds(stage.offsetWidth, cloudCover));
 }
 
 ['sunlight', 'cells', 'inverter', 'storage', 'grid'].forEach(initPhotonInteractive);
