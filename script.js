@@ -9,7 +9,10 @@ window.addEventListener('scroll', () => {
 const observer = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
 }, { threshold: 0.1 });
-document.querySelectorAll('.chapter').forEach(s => observer.observe(s));
+document.querySelectorAll('.chapter').forEach(s => {
+  s.classList.add('will-animate');
+  observer.observe(s);
+});
 
 // active nav
 const sections = ['sunlight','cells','inverter','storage','grid'];
