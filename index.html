@@ -59,6 +59,51 @@
     <p>"A tiny fraction of the sun's energy reaches Earth — yet that fraction is enough to power civilisation many times over."</p>
     <cite>The photovoltaic effect — Becquerel, 1839</cite>
   </div>
+
+  <div class="photon-interactive">
+    <div class="photon-header">
+      <span class="chapter-tag">Interactive — control cloud cover to see how it affects output</span>
+    </div>
+    <div class="photon-stage" id="photonStage-sunlight">
+      <canvas style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none" id="photonCanvas-sunlight"></canvas>
+      <svg class="photon-clouds" id="cloudLayer-sunlight" height="120"></svg>
+      <div class="photon-ground"></div>
+      <div class="photon-panel-wrap">
+        <div class="photon-panel-face" id="photonPanel-sunlight">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+        <div class="photon-pole"></div>
+      </div>
+    </div>
+    <div class="cloud-control">
+      <label>Cloud cover</label>
+      <input type="range" min="0" max="100" value="0" id="cloudSlider-sunlight">
+      <span class="cloud-val" id="cloudVal-sunlight">0%</span>
+    </div>
+    <div class="photon-readout">
+      <div class="photon-stat">
+        <div class="photon-stat-label">Cloud cover</div>
+        <div class="photon-stat-value" id="pStatCloud-sunlight">0%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Photons reaching panel</div>
+        <div class="photon-stat-value" id="pStatPhotons-sunlight">100%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Power output</div>
+        <div class="photon-stat-value" id="pStatOutput-sunlight">100%</div>
+        <div class="photon-power-track">
+          <div class="photon-power-fill" id="pPowerFill-sunlight" style="width:100%"></div>
+        </div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Condition</div>
+        <div class="photon-stat-value" id="pStatCond-sunlight">Clear</div>
+      </div>
+    </div>
+    <p class="photon-note" id="photonNote-sunlight">Full sun — photons travel unobstructed from the sun straight to the panel.</p>
+  </div>
 </section>
 
 <!-- ── CHAPTER 2: SOLAR CELLS ── -->
@@ -92,6 +137,51 @@
       <div class="stat-num">~20%</div>
       <div class="stat-label">Typical efficiency of a<br>modern silicon solar cell</div>
     </div>
+  </div>
+
+  <div class="photon-interactive">
+    <div class="photon-header">
+      <span class="chapter-tag">Interactive — cloud cover determines how many photons reach each cell</span>
+    </div>
+    <div class="photon-stage" id="photonStage-cells">
+      <canvas style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none" id="photonCanvas-cells"></canvas>
+      <svg class="photon-clouds" id="cloudLayer-cells" height="120"></svg>
+      <div class="photon-ground"></div>
+      <div class="photon-panel-wrap">
+        <div class="photon-panel-face" id="photonPanel-cells">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+        <div class="photon-pole"></div>
+      </div>
+    </div>
+    <div class="cloud-control">
+      <label>Cloud cover</label>
+      <input type="range" min="0" max="100" value="0" id="cloudSlider-cells">
+      <span class="cloud-val" id="cloudVal-cells">0%</span>
+    </div>
+    <div class="photon-readout">
+      <div class="photon-stat">
+        <div class="photon-stat-label">Cloud cover</div>
+        <div class="photon-stat-value" id="pStatCloud-cells">0%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Photons reaching panel</div>
+        <div class="photon-stat-value" id="pStatPhotons-cells">100%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Power output</div>
+        <div class="photon-stat-value" id="pStatOutput-cells">100%</div>
+        <div class="photon-power-track">
+          <div class="photon-power-fill" id="pPowerFill-cells" style="width:100%"></div>
+        </div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Condition</div>
+        <div class="photon-stat-value" id="pStatCond-cells">Clear</div>
+      </div>
+    </div>
+    <p class="photon-note" id="photonNote-cells">Full sun — photons travel unobstructed from the sun straight to the panel.</p>
   </div>
 </section>
 
@@ -127,6 +217,51 @@
       <div class="stat-label">Efficiency of a<br>modern inverter</div>
     </div>
   </div>
+
+  <div class="photon-interactive">
+    <div class="photon-header">
+      <span class="chapter-tag">Interactive — photon input governs the DC available for the inverter to convert</span>
+    </div>
+    <div class="photon-stage" id="photonStage-inverter">
+      <canvas style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none" id="photonCanvas-inverter"></canvas>
+      <svg class="photon-clouds" id="cloudLayer-inverter" height="120"></svg>
+      <div class="photon-ground"></div>
+      <div class="photon-panel-wrap">
+        <div class="photon-panel-face" id="photonPanel-inverter">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+        <div class="photon-pole"></div>
+      </div>
+    </div>
+    <div class="cloud-control">
+      <label>Cloud cover</label>
+      <input type="range" min="0" max="100" value="0" id="cloudSlider-inverter">
+      <span class="cloud-val" id="cloudVal-inverter">0%</span>
+    </div>
+    <div class="photon-readout">
+      <div class="photon-stat">
+        <div class="photon-stat-label">Cloud cover</div>
+        <div class="photon-stat-value" id="pStatCloud-inverter">0%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Photons reaching panel</div>
+        <div class="photon-stat-value" id="pStatPhotons-inverter">100%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Power output</div>
+        <div class="photon-stat-value" id="pStatOutput-inverter">100%</div>
+        <div class="photon-power-track">
+          <div class="photon-power-fill" id="pPowerFill-inverter" style="width:100%"></div>
+        </div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Condition</div>
+        <div class="photon-stat-value" id="pStatCond-inverter">Clear</div>
+      </div>
+    </div>
+    <p class="photon-note" id="photonNote-inverter">Full sun — photons travel unobstructed from the sun straight to the panel.</p>
+  </div>
 </section>
 
 <!-- ── CHAPTER 4: STORAGE ── -->
@@ -160,6 +295,51 @@
       <div class="stat-num">Li-ion</div>
       <div class="stat-label">Same chemistry as your<br>phone and your EV</div>
     </div>
+  </div>
+
+  <div class="photon-interactive">
+    <div class="photon-header">
+      <span class="chapter-tag">Interactive — surplus photons on clear days charge the battery for overnight use</span>
+    </div>
+    <div class="photon-stage" id="photonStage-storage">
+      <canvas style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none" id="photonCanvas-storage"></canvas>
+      <svg class="photon-clouds" id="cloudLayer-storage" height="120"></svg>
+      <div class="photon-ground"></div>
+      <div class="photon-panel-wrap">
+        <div class="photon-panel-face" id="photonPanel-storage">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+        <div class="photon-pole"></div>
+      </div>
+    </div>
+    <div class="cloud-control">
+      <label>Cloud cover</label>
+      <input type="range" min="0" max="100" value="0" id="cloudSlider-storage">
+      <span class="cloud-val" id="cloudVal-storage">0%</span>
+    </div>
+    <div class="photon-readout">
+      <div class="photon-stat">
+        <div class="photon-stat-label">Cloud cover</div>
+        <div class="photon-stat-value" id="pStatCloud-storage">0%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Photons reaching panel</div>
+        <div class="photon-stat-value" id="pStatPhotons-storage">100%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Power output</div>
+        <div class="photon-stat-value" id="pStatOutput-storage">100%</div>
+        <div class="photon-power-track">
+          <div class="photon-power-fill" id="pPowerFill-storage" style="width:100%"></div>
+        </div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Condition</div>
+        <div class="photon-stat-value" id="pStatCond-storage">Clear</div>
+      </div>
+    </div>
+    <p class="photon-note" id="photonNote-storage">Full sun — photons travel unobstructed from the sun straight to the panel.</p>
   </div>
 </section>
 
@@ -199,6 +379,51 @@
       <div class="stat-num">239GW</div>
       <div class="stat-label">Total U.S. installed solar<br>capacity end of 2024</div>
     </div>
+  </div>
+
+  <div class="photon-interactive">
+    <div class="photon-header">
+      <span class="chapter-tag">Interactive — photon throughput determines how much surplus power feeds back to the grid</span>
+    </div>
+    <div class="photon-stage" id="photonStage-grid">
+      <canvas style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none" id="photonCanvas-grid"></canvas>
+      <svg class="photon-clouds" id="cloudLayer-grid" height="120"></svg>
+      <div class="photon-ground"></div>
+      <div class="photon-panel-wrap">
+        <div class="photon-panel-face" id="photonPanel-grid">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+        <div class="photon-pole"></div>
+      </div>
+    </div>
+    <div class="cloud-control">
+      <label>Cloud cover</label>
+      <input type="range" min="0" max="100" value="0" id="cloudSlider-grid">
+      <span class="cloud-val" id="cloudVal-grid">0%</span>
+    </div>
+    <div class="photon-readout">
+      <div class="photon-stat">
+        <div class="photon-stat-label">Cloud cover</div>
+        <div class="photon-stat-value" id="pStatCloud-grid">0%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Photons reaching panel</div>
+        <div class="photon-stat-value" id="pStatPhotons-grid">100%</div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Power output</div>
+        <div class="photon-stat-value" id="pStatOutput-grid">100%</div>
+        <div class="photon-power-track">
+          <div class="photon-power-fill" id="pPowerFill-grid" style="width:100%"></div>
+        </div>
+      </div>
+      <div class="photon-stat">
+        <div class="photon-stat-label">Condition</div>
+        <div class="photon-stat-value" id="pStatCond-grid">Clear</div>
+      </div>
+    </div>
+    <p class="photon-note" id="photonNote-grid">Full sun — photons travel unobstructed from the sun straight to the panel.</p>
   </div>
 </section>
 
