@@ -169,6 +169,23 @@
       <div class="stat-label">Typical efficiency of a<br>modern silicon solar cell</div>
     </div>
   </div>
+
+  <!-- ELECTRON PINBALL INTERACTIVE -->
+  <div class="ix-box" id="pn-interactive">
+    <div class="ix-label">Interactive — click anywhere on the silicon to fire a photon</div>
+    <div class="pinball-stage" id="pinballStage">
+      <div class="pinball-hint">← click anywhere to fire a photon →</div>
+      <canvas id="pinballCanvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <svg id="pinballSVG" style="position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="pinball-readout">
+      <div class="pinball-stat"><div class="pinball-stat-label">Photons fired</div><div class="pinball-stat-value" id="pbFired">0</div></div>
+      <div class="pinball-stat"><div class="pinball-stat-label">Electrons freed</div><div class="pinball-stat-value" id="pbFreed">0</div></div>
+      <div class="pinball-stat"><div class="pinball-stat-label">Current generated</div><div class="pinball-stat-value" id="pbCurrent">0 mA</div></div>
+      <div class="pinball-stat"><div class="pinball-stat-label">Voltage</div><div class="pinball-stat-value" id="pbVoltage">0.0 V</div></div>
+    </div>
+    <p class="ix-note" id="pinballNote">Click the stage to fire photons into the silicon lattice and knock electrons free.</p>
+  </div>
 </section>
 
 <!-- ── CHAPTER 3: INVERTER ── -->
