@@ -28,8 +28,9 @@ function updateNav() {
 
 // ── PHOTON RAIN INTERACTIVE ──
 (function () {
+  const NS           = 'http://www.w3.org/2000/svg';
   const stage        = document.getElementById('photonStage');
-  const canvas       = document.getElementById('photonCanvas');
+  const svgEl        = document.getElementById('photonSVG');
   const cloudSVG     = document.getElementById('cloudLayer');
   const panel        = document.getElementById('photonPanel');
   const slider       = document.getElementById('cloudSlider');
@@ -43,60 +44,103 @@ function updateNav() {
 
   if (!stage) return;
 
-  const ctx = canvas.getContext('2d');
   let cloudCover = 0;
   let photons = [];
+  let W = stage.offsetWidth;
+  let H = stage.offsetHeight;
+
+  const ICON_HALF = 10;   // half of 20px icon
+  const CLOUD_BTM = 120 * 0.35;
+  const CLOUD_AR  = 40 / 68; // cloud symbol viewBox aspect ratio
+
+  // ── SVG element pools ──
+  const freePhotons = [];
+  function getPhotonEl() {
+    if (freePhotons.length) {
+      const el = freePhotons.pop();
+      el.style.display = '';
+      return el;
+    }
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('href', '#photon-shape');
+    el.setAttribute('width', ICON_HALF * 2);
+    el.setAttribute('height', ICON_HALF * 2);
+    el.setAttribute('filter', 'url(#photon-glow)');
+    svgEl.appendChild(el);
+    return el;
+  }
+  function releasePhotonEl(el) {
+    el.style.display = 'none';
+    freePhotons.push(el);
+  }
+
+  const freeCircles = [];
+  function getCircleEl() {
+    if (freeCircles.length) {
+      const el = freeCircles.pop();
+      el.style.display = '';
+      return el;
+    }
+    const el = document.createElementNS(NS, 'circle');
+    svgEl.appendChild(el);
+    return el;
+  }
+  function releaseCircleEl(el) {
+    el.style.display = 'none';
+    freeCircles.push(el);
+  }
 
   const cloudDefs = [
-    { cx: 0.18, cy: 0.28, rx: 0.13, ry: 0.07 },
-    { cx: 0.28, cy: 0.20, rx: 0.10, ry: 0.06 },
-    { cx: 0.50, cy: 0.22, rx: 0.16, ry: 0.08 },
-    { cx: 0.62, cy: 0.15, rx: 0.11, ry: 0.06 },
-    { cx: 0.78, cy: 0.25, rx: 0.14, ry: 0.07 },
-    { cx: 0.88, cy: 0.18, rx: 0.09, ry: 0.05 }
+    { cx: 0.18, cy: 0.28, scale: 0.28 },
+    { cx: 0.30, cy: 0.18, scale: 0.22 },
+    { cx: 0.50, cy: 0.22, scale: 0.36 },
+    { cx: 0.64, cy: 0.14, scale: 0.24 },
+    { cx: 0.78, cy: 0.26, scale: 0.30 },
+    { cx: 0.90, cy: 0.17, scale: 0.20 }
   ];
 
-  function drawClouds(W, cover) {
+  function drawClouds(cover) {
     cloudSVG.setAttribute('width', W);
     cloudSVG.innerHTML = '';
     const visible = Math.round(cover / 100 * cloudDefs.length);
     for (let i = 0; i < visible; i++) {
       const c = cloudDefs[i];
       const opacity = 0.55 + (cover / 100) * 0.35;
-      const el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-      el.setAttribute('cx', c.cx * W);
-      el.setAttribute('cy', c.cy * 120);
-      el.setAttribute('rx', c.rx * W);
-      el.setAttribute('ry', c.ry * 120);
-      el.setAttribute('fill', `rgba(180,180,190,${opacity})`);
+      const cw = c.scale * W;
+      const ch = cw * CLOUD_AR;
+      const el = document.createElementNS(NS, 'use');
+      el.setAttribute('href', '#cloud-shape');
+      el.setAttribute('x', c.cx * W - cw / 2);
+      el.setAttribute('y', c.cy * 120 - ch / 2);
+      el.setAttribute('width', cw);
+      el.setAttribute('height', ch);
+      el.setAttribute('opacity', opacity);
       cloudSVG.appendChild(el);
     }
   }
 
-  function spawnPhoton(W) {
-    const passChance = 1 - cloudCover / 100;
+  function spawnPhoton() {
+    const blocked = Math.random() > (1 - cloudCover / 100);
+    const el = blocked ? getCircleEl() : getPhotonEl();
     return {
       x: Math.random() * W,
-      y: -6,
+      y: -ICON_HALF,
       vy: 1.8 + Math.random() * 1.4,
       vx: (Math.random() - 0.5) * 0.6,
       r: 2 + Math.random() * 1.5,
       alpha: 0.7 + Math.random() * 0.3,
-      blocked: Math.random() > passChance
+      blocked,
+      el
     };
   }
 
-  function panelY(H) { return H - 56 - 8; }
+  function panelY() { return H - 56 - 8; }
 
   function tick() {
-    const W = canvas.width  = stage.offsetWidth;
-    const H = canvas.height = stage.offsetHeight;
-    ctx.clearRect(0, 0, W, H);
-
     const rate = Math.round(1 + (1 - cloudCover / 100) * 5);
-    for (let i = 0; i < rate; i++) photons.push(spawnPhoton(W));
+    for (let i = 0; i < rate; i++) photons.push(spawnPhoton());
 
-    const pY = panelY(H);
+    const pY = panelY();
     const pX = W / 2;
     const pHalfW = 80;
     let hitCount = 0;
@@ -106,43 +150,47 @@ function updateNav() {
       p.x += p.vx;
       p.y += p.vy;
 
-      if (p.blocked) {
-        const cloudBottom = 120 * 0.35;
-        if (p.y > cloudBottom) {
-          p.alpha -= 0.06;
-          if (p.alpha <= 0) { photons.splice(i, 1); continue; }
+      if (p.blocked && p.y > CLOUD_BTM) {
+        p.alpha -= 0.06;
+        if (p.alpha <= 0) {
+          releaseCircleEl(p.el);
+          photons.splice(i, 1);
+          continue;
         }
       }
 
-      if (!p.blocked && p.y >= pY - 10 && p.y <= pY + 10 && p.x >= pX - pHalfW && p.x <= pX + pHalfW) {
+      if (!p.blocked && p.y >= pY - 10 && p.y <= pY + 10 &&
+          p.x >= pX - pHalfW && p.x <= pX + pHalfW) {
         hitCount++;
+        releasePhotonEl(p.el);
         photons.splice(i, 1);
         continue;
       }
 
-      if (p.y > H || p.x < -10 || p.x > W + 10) {
+      if (p.y > H + 10 || p.x < -20 || p.x > W + 20) {
+        p.blocked ? releaseCircleEl(p.el) : releasePhotonEl(p.el);
         photons.splice(i, 1);
         continue;
       }
 
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.blocked
-        ? `rgba(200,200,220,${p.alpha * 0.5})`
-        : `rgba(255,240,140,${p.alpha})`;
-      ctx.fill();
-
-      if (!p.blocked) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(232,200,74,${p.alpha * 0.12})`;
-        ctx.fill();
+      if (p.blocked) {
+        p.el.setAttribute('cx', p.x);
+        p.el.setAttribute('cy', p.y);
+        p.el.setAttribute('r', p.r);
+        p.el.setAttribute('fill', `rgba(200,200,220,${(p.alpha * 0.5).toFixed(2)})`);
+      } else {
+        p.el.setAttribute('x', p.x - ICON_HALF);
+        p.el.setAttribute('y', p.y - ICON_HALF);
+        p.el.setAttribute('opacity', p.alpha.toFixed(2));
       }
     }
 
-    if (photons.length > 400) photons.splice(0, photons.length - 400);
-    panel.classList.toggle('lit', hitCount > 0);
+    if (photons.length > 400) {
+      const excess = photons.splice(0, photons.length - 400);
+      excess.forEach(p => p.blocked ? releaseCircleEl(p.el) : releasePhotonEl(p.el));
+    }
 
+    panel.classList.toggle('lit', hitCount > 0);
     requestAnimationFrame(tick);
   }
 
@@ -172,12 +220,16 @@ function updateNav() {
       el.classList.toggle('low', cloudCover > 60);
     });
 
-    drawClouds(stage.offsetWidth, cloudCover);
+    drawClouds(cloudCover);
   }
 
   slider.addEventListener('input', () => update(slider.value));
+  window.addEventListener('resize', () => {
+    W = stage.offsetWidth;
+    H = stage.offsetHeight;
+    drawClouds(cloudCover);
+  });
 
   update(0);
-  tick();
-  window.addEventListener('resize', () => drawClouds(stage.offsetWidth, cloudCover));
+  requestAnimationFrame(tick);
 })();
