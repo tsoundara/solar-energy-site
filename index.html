@@ -67,7 +67,17 @@
     </div>
 
     <div class="photon-stage" id="photonStage">
-      <canvas id="photonCanvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none"></canvas>
+      <svg id="photonSVG" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="photon-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
       <svg class="photon-clouds" id="cloudLayer" height="120"></svg>
       <div class="photon-ground"></div>
       <div class="photon-panel-wrap">
