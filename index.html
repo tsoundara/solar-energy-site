@@ -93,6 +93,18 @@
               <polygon points="72.13 68.1 73.47 66.98 78.78 73.91 78.16 74.44 72.13 68.1"/>
             </g>
           </symbol>
+          <symbol id="house-lit-shape" viewBox="55 52 51 53">
+            <rect fill="#8cc63f" stroke="gray" stroke-miterlimit="10" stroke-width=".36" x="55.4" y="55.4" width="49.21" height="49.21"/>
+            <rect fill="#a67c52" stroke="gray" stroke-miterlimit="10" stroke-width=".39" x="59" y="59" width="42" height="42"/>
+            <line stroke="#000" stroke-miterlimit="10" stroke-width=".39" x1="101" y1="59" x2="59" y2="101"/>
+            <line stroke="#000" stroke-miterlimit="10" stroke-width=".39" x1="59" y1="59" x2="101" y2="101"/>
+          </symbol>
+          <symbol id="house-dim-shape" viewBox="55 52 51 53">
+            <rect fill="#c7b299" stroke="gray" stroke-miterlimit="10" stroke-width=".36" x="55.4" y="52.79" width="49.21" height="49.21"/>
+            <rect fill="#a67c52" stroke="gray" stroke-miterlimit="10" stroke-width=".39" x="59" y="56.39" width="42" height="42"/>
+            <line stroke="#000" stroke-miterlimit="10" stroke-width=".39" x1="101" y1="56.39" x2="59" y2="98.39"/>
+            <line stroke="#000" stroke-miterlimit="10" stroke-width=".39" x1="59" y1="56.39" x2="101" y2="98.39"/>
+          </symbol>
         </defs>
       </svg>
       <svg class="photon-clouds" id="cloudLayer" height="120"></svg>
@@ -292,6 +304,26 @@
       <div class="stat-num">239GW</div>
       <div class="stat-label">Total U.S. installed solar<br>capacity end of 2024</div>
     </div>
+  </div>
+
+  <!-- TOP-DOWN MAP INTERACTIVE -->
+  <div class="ix-box" id="grid-interactive">
+    <div class="ix-label">Interactive — adjust solar output to see power flow across the neighbourhood</div>
+    <div class="map-wrap">
+      <canvas id="mapCanvas" style="position:absolute;inset:0;width:100%;height:100%;background:#07090E"></canvas>
+      <svg id="mapSVG" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="ctrl-row">
+      <label for="mapSlider">Solar output</label>
+      <input type="range" min="0" max="100" value="80" id="mapSlider">
+      <span class="ctrl-val" id="mapVal">80%</span>
+    </div>
+    <div class="readout">
+      <div class="r-stat"><div class="r-label">Solar output</div><div class="r-value" id="mapR1">80%</div></div>
+      <div class="r-stat"><div class="r-label">Houses active</div><div class="r-value" id="mapR2">8</div></div>
+      <div class="r-stat"><div class="r-label">Substation load</div><div class="r-value" id="mapR3">−12 kW</div></div>
+    </div>
+    <p class="ix-note" id="mapNote">High output — arrows flowing toward the substation as homes export surplus energy.</p>
   </div>
 </section>
 

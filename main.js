@@ -415,3 +415,127 @@ function updateNav() {
 
   tick();
 })();
+
+// ── TOP-DOWN MAP INTERACTIVE ──
+(function () {
+  const NS     = 'http://www.w3.org/2000/svg';
+  const canvas = document.getElementById('mapCanvas');
+  const mapSVG = document.getElementById('mapSVG');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  let solar = 80;
+  let arrows = [];
+
+  const HOUSES = [
+    { x: .15, y: .25 }, { x: .35, y: .25 }, { x: .55, y: .25 }, { x: .75, y: .25 },
+    { x: .15, y: .65 }, { x: .35, y: .65 }, { x: .55, y: .65 }, { x: .75, y: .65 }
+  ];
+  const SUBSTATION = { x: .50, y: .47 };
+  const HOUSE_SZ = 14;
+
+  // 8 permanent <use> elements — swap between house-lit-shape and house-dim-shape
+  const houseEls = HOUSES.map(() => {
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('width', HOUSE_SZ * 2);
+    el.setAttribute('height', HOUSE_SZ * 2);
+    mapSVG.appendChild(el);
+    return el;
+  });
+
+  function updateHouseIcons(W, H) {
+    HOUSES.forEach((h, i) => {
+      const lit = solar > 10 + i * 10;
+      houseEls[i].setAttribute('href', lit ? '#house-lit-shape' : '#house-dim-shape');
+      houseEls[i].setAttribute('x', h.x * W - HOUSE_SZ);
+      houseEls[i].setAttribute('y', h.y * H - HOUSE_SZ);
+    });
+  }
+
+  function spawnArrow(hi) {
+    const h = HOUSES[hi];
+    arrows.push({ hx: h.x, hy: h.y, t: 0, speed: 0.014 + Math.random() * 0.008 });
+  }
+
+  function draw() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = '#07090E'; ctx.fillRect(0, 0, W, H);
+
+    // roads
+    ctx.strokeStyle = 'rgba(240,237,230,0.07)'; ctx.lineWidth = 8;
+    [0.27, 0.47, 0.70].forEach(y => {
+      ctx.beginPath(); ctx.moveTo(0, H * y); ctx.lineTo(W, H * y); ctx.stroke();
+    });
+    [0.10, 0.25, 0.45, 0.65, 0.85].forEach(x => {
+      ctx.beginPath(); ctx.moveTo(W * x, 0); ctx.lineTo(W * x, H); ctx.stroke();
+    });
+
+    // road labels
+    ctx.fillStyle = 'rgba(240,237,230,0.08)'; ctx.font = '500 9px Barlow, sans-serif';
+    ctx.fillText('SOLAR AVE', W * 0.11, H * 0.26);
+    ctx.fillText('GRID RD',   W * 0.11, H * 0.46);
+
+    // house labels — bodies are SVG <use> elements
+    ctx.font = '500 8px Barlow, sans-serif'; ctx.textAlign = 'center';
+    HOUSES.forEach((h, i) => {
+      const hx = h.x * W, hy = h.y * H;
+      ctx.fillStyle = 'rgba(240,237,230,0.3)';
+      ctx.fillText('H-0' + (i + 1), hx, hy + HOUSE_SZ + 10);
+      if (Math.random() < 0.02 * (solar / 100)) spawnArrow(i);
+    });
+    ctx.textAlign = 'left';
+
+    // substation
+    const sx = SUBSTATION.x * W, sy = SUBSTATION.y * H;
+    ctx.fillStyle   = 'rgba(232,200,74,0.12)';
+    ctx.strokeStyle = 'rgba(232,200,74,0.6)'; ctx.lineWidth = 1.5;
+    ctx.fillRect(sx - 20, sy - 20, 40, 40); ctx.strokeRect(sx - 20, sy - 20, 40, 40);
+    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 24);
+    glow.addColorStop(0, 'rgba(232,200,74,0.2)'); glow.addColorStop(1, 'rgba(232,200,74,0)');
+    ctx.beginPath(); ctx.arc(sx, sy, 24, 0, Math.PI * 2); ctx.fillStyle = glow; ctx.fill();
+    ctx.fillStyle = 'rgba(232,200,74,0.7)'; ctx.font = 'bold 9px Barlow, sans-serif';
+    ctx.textAlign = 'center'; ctx.fillText('SUB', sx, sy + 3);
+    ctx.fillStyle = 'rgba(232,200,74,0.35)'; ctx.font = '500 8px Barlow, sans-serif';
+    ctx.fillText('SUBSTATION', sx, sy + 30); ctx.textAlign = 'left';
+
+    // update SVG house icons to match current dimensions and solar level
+    updateHouseIcons(W, H);
+
+    // animated energy pulses
+    for (let i = arrows.length - 1; i >= 0; i--) {
+      const a = arrows[i]; a.t += a.speed;
+      if (a.t >= 1) { arrows.splice(i, 1); continue; }
+      const ax    = a.hx * W + (sx - a.hx * W) * a.t;
+      const ay    = a.hy * H + (sy - a.hy * H) * a.t;
+      const alpha = Math.sin(a.t * Math.PI) * 0.9;
+      ctx.beginPath(); ctx.arc(ax, ay, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,200,74,${alpha})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,200,74,${alpha * 0.15})`; ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  function update(v) {
+    solar = +v;
+    document.getElementById('mapVal').textContent = v + '%';
+    document.getElementById('mapR1').textContent  = v + '%';
+    const active = HOUSES.filter((_, i) => solar > 10 + i * 10).length;
+    document.getElementById('mapR2').textContent  = active;
+    const load = (active * (solar / 100) * 1.5).toFixed(0);
+    document.getElementById('mapR3').textContent  = (solar > 40 ? '−' : '+') + (+load) + ' kW';
+    document.getElementById('mapNote').textContent = solar > 60
+      ? 'Arrows flowing toward the substation — homes exporting surplus solar to the grid.'
+      : solar > 25 ? 'Mixed flow — some homes exporting, others drawing from the grid.'
+      : 'Minimal solar — neighbourhood drawing from the substation.';
+  }
+
+  document.getElementById('mapSlider').addEventListener('input', e => update(e.target.value));
+  update(80);
+  draw();
+})();
