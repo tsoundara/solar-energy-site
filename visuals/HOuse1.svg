@@ -2,11 +2,27 @@
 <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
   <defs>
     <style>
-      .cls-1 { fill: #fbb03b; stroke-width: .36px; }
-      .cls-1, .cls-2 { stroke: gray; }
-      .cls-1, .cls-2, .cls-3 { stroke-miterlimit: 10; }
-      .cls-2, .cls-3 { fill: #a67c52; stroke-width: .39px; }
-      .cls-3 { stroke: #000; }
+      .cls-1 {
+        fill: #fbb03b;
+        stroke-width: .36px;
+      }
+
+      .cls-1, .cls-2 {
+        stroke: gray;
+      }
+
+      .cls-1, .cls-2, .cls-3 {
+        stroke-miterlimit: 10;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #a67c52;
+        stroke-width: .39px;
+      }
+
+      .cls-3 {
+        stroke: #000;
+      }
     </style>
   </defs>
   <rect class="cls-1" x="55.99" y="52.79" width="49.21" height="49.21"/>
