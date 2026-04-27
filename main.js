@@ -721,18 +721,11 @@ updateNav();
       ctx.beginPath(); ctx.arc(sunX, sunY, sunR*2.5, 0, Math.PI*2);
       ctx.fillStyle = sg; ctx.fill();
     }
-    if (lightImgReady) {
-      ctx.save();
-      ctx.globalAlpha = sunVisible ? 1 : 0.2;
-      ctx.drawImage(lightImg, sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
-      ctx.restore();
-    } else {
-      const sunFill = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
-      sunFill.addColorStop(0, sunVisible ? '#FFF3B0' : '#1A1A2A');
-      sunFill.addColorStop(1, sunVisible ? '#E8C84A' : '#0A0A14');
-      ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
-      ctx.fillStyle = sunFill; ctx.fill();
-    }
+    const sunFill = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
+    sunFill.addColorStop(0, sunVisible ? '#FFF3B0' : '#1A1A2A');
+    sunFill.addColorStop(1, sunVisible ? '#E8C84A' : '#0A0A14');
+    ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
+    ctx.fillStyle = sunFill; ctx.fill();
 
     // ── MARKER LINE ──
     ctx.strokeStyle = 'rgba(242,239,233,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
