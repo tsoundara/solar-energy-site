@@ -41,11 +41,6 @@ updateNav();
   let cloudCover = 0;
   let photons = [];
 
-  const lightImg = new Image();
-  lightImg.src = 'visuals/light.svg';
-
-  const CLOUD_SYMBOLS = ['#cloud-shape-1','#cloud-shape-2','#cloud-shape-3','#cloud-shape-4'];
-
   const CLOUD_ZONE = 0.5; // midpoint of stage
 
   // Panel hit zone — wide band covering the bottom ~30% of the canvas.
@@ -102,15 +97,12 @@ updateNav();
 
     for (let i = 0; i < visible; i++) {
       const c = CLOUD_PUFFS[i];
-      const cw = c.rx * W * 2.4;
-      const ch = cw * 0.55;
-      const el = document.createElementNS('http://www.w3.org/2000/svg','use');
-      el.setAttribute('href', CLOUD_SYMBOLS[i % CLOUD_SYMBOLS.length]);
-      el.setAttribute('x', c.cx * W - cw / 2);
-      el.setAttribute('y', c.cy * H - ch / 2);
-      el.setAttribute('width', cw);
-      el.setAttribute('height', ch);
-      el.setAttribute('opacity', opacity);
+      const el = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+      el.setAttribute('cx', c.cx * W);
+      el.setAttribute('cy', c.cy * H);
+      el.setAttribute('rx', c.rx * W);
+      el.setAttribute('ry', c.ry * H);
+      el.setAttribute('fill', `rgba(155,160,178,${opacity})`);
       cloudSVG.appendChild(el);
     }
   }
@@ -198,19 +190,17 @@ updateNav();
         continue;
       }
 
-      // Draw photon as light.svg icon
-      const size = p.r * 7;
-      ctx.save();
-      ctx.globalAlpha = p.alpha;
-      if (lightImg.complete && lightImg.naturalWidth) {
-        ctx.drawImage(lightImg, p.x - size / 2, p.y - size / 2, size, size);
-      } else {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
-        ctx.fill();
-      }
-      ctx.restore();
+      // Draw photon — all photons look the same while falling
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,200,74,${p.alpha * 0.1})`;
+      ctx.fill();
+      // end of draw — blocked ones will be removed at cloud zone on next frame
     }
 
     if (photons.length > 400) photons.splice(0, photons.length - 400);

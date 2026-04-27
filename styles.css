@@ -99,6 +99,7 @@ body {
   line-height: 1.2;
 }
 
+
 /* ════════════════════════════════════
    MAIN CONTENT
 ════════════════════════════════════ */
@@ -271,6 +272,7 @@ body {
   border: 1px solid var(--rule); border-radius:4px; overflow:hidden;
 }
 
+/* cloud midpoint marker line */
 .cloud-zone-marker {
   position: absolute;
   left: 0; right: 0;
@@ -330,6 +332,7 @@ body {
   box-shadow: 0 0 8px 3px rgba(232,200,74,0.85);
 }
 
+/* bus bar lines */
 .photon-panel-face::after {
   content: '';
   position: absolute; inset: 0;
@@ -383,6 +386,7 @@ body {
   pointer-events: none; z-index: 3;
 }
 
+/* horizontal slider */
 .journey-slider-wrap {
   display: flex; align-items: center; gap: 1rem;
   margin-top: 1.4rem;
@@ -417,11 +421,12 @@ body {
 
 .journey-slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.2); }
 
+/* info panel */
 .journey-info {
   display: flex; justify-content: space-between;
   align-items: flex-start; gap: 2rem;
   margin-top: 1.4rem; padding: 1.2rem 1.5rem;
-  background: #161822;
+  background: var(--bg3, #161822);
   border: 1px solid var(--rule); border-radius: 4px;
 }
 
@@ -478,6 +483,7 @@ body {
 
 .timeline-drag-hint.hidden { opacity: 0; }
 
+/* info strip */
 .timeline-info-strip {
   display: flex; gap: 0;
   margin-top: 1.2rem;
@@ -505,13 +511,14 @@ body {
   transition: color 0.3s;
 }
 
+/* explainer block */
 .tl-explainer {
   display: flex;
   align-items: center;
   gap: 1.5rem;
   margin-top: 1.2rem;
   padding: 1.6rem 2rem;
-  background: #161822;
+  background: var(--bg3, #161822);
   border: 1px solid var(--rule);
   border-radius: 6px;
   min-height: 100px;
@@ -542,7 +549,9 @@ body {
   text-align: center;
 }
 
-.tl-explainer-body { flex: 1; }
+.tl-explainer-body {
+  flex: 1;
+}
 
 .tl-explainer-status {
   font-family: 'Bebas Neue', sans-serif;
@@ -585,9 +594,6 @@ body {
   transition: color 0.3s;
 }
 
-/* ════════════════════════════════════
-   RESPONSIVE
-════════════════════════════════════ */
 @media (max-width: 600px) {
   .tl-explainer { flex-wrap: wrap; }
   .tl-explainer-net { border-left: none; border-top: 1px solid var(--rule); padding-left: 0; padding-top: 0.8rem; text-align: left; width: 100%; }
@@ -595,12 +601,18 @@ body {
   .tl-info-block { min-width: 45%; }
 }
 
+/* ════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════ */
 @media (max-width: 700px) {
   :root { --side-w: 56px; }
   .side-label { display: none; }
+  .cable-house-label { display: none; }
   .chapter { padding: 5rem 1.5rem; }
   .chapter-body { grid-template-columns: 1fr; gap: 1.5rem; }
   .stat-row { flex-direction: column; }
   .chapter-ghost { display: none; }
   .hero { padding: 3rem 1.5rem; }
+  footer { padding: 3rem 1.5rem; flex-direction: column; }
+  .footer-meta { text-align: left; }
 }
