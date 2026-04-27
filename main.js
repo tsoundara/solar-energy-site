@@ -6,6 +6,8 @@ const sideLinks = document.querySelectorAll('.side-link');
 
 // Shared light SVG image used as photon icon across all interactives
 const lightImg = new Image();
+let lightImgReady = false;
+lightImg.onload = () => { lightImgReady = true; };
 lightImg.src = 'visuals/light.svg';
 
 const revObs = new IntersectionObserver(entries => {
@@ -203,7 +205,7 @@ updateNav();
       const size = p.r * 7;
       ctx.save();
       ctx.globalAlpha = p.alpha;
-      if (lightImg.complete && lightImg.naturalWidth) {
+      if (lightImgReady) {
         ctx.drawImage(lightImg, p.x - size / 2, p.y - size / 2, size, size);
       } else {
         ctx.beginPath();
@@ -382,7 +384,7 @@ updateNav();
     pg.addColorStop(1, 'rgba(232,200,74,0)');
     ctx.beginPath(); ctx.arc(pX, pY, pSize, 0, Math.PI*2);
     ctx.fillStyle = pg; ctx.fill();
-    if (lightImg.complete && lightImg.naturalWidth) {
+    if (lightImgReady) {
       ctx.drawImage(lightImg, pX - 14, pY - 14, 28, 28);
     } else {
       ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
@@ -720,7 +722,7 @@ updateNav();
       ctx.beginPath(); ctx.arc(sunX, sunY, sunR*2.5, 0, Math.PI*2);
       ctx.fillStyle = sg; ctx.fill();
     }
-    if (lightImg.complete && lightImg.naturalWidth) {
+    if (lightImgReady) {
       ctx.save();
       ctx.globalAlpha = sunVisible ? 1 : 0.2;
       ctx.drawImage(lightImg, sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
