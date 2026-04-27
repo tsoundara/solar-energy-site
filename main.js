@@ -1,32 +1,38 @@
-// ════════════════════════════════════
-// SCROLL REVEAL + ACTIVE NAV
-// ════════════════════════════════════
-const sections  = ['hero','sunlight','cells','inverter','storage','grid'];
-const sideLinks = document.querySelectorAll('.side-link');
+// ── PROGRESS BAR ──
+window.addEventListener('scroll', () => {
+  const h = document.body.scrollHeight - window.innerHeight;
+  document.getElementById('progress').style.width = (h > 0 ? window.scrollY / h * 100 : 0) + '%';
+  updateNav();
+});
 
-const revObs = new IntersectionObserver(entries => {
+// ── SCROLL REVEAL ──
+const observer = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-}, { threshold: 0.08 });
-document.querySelectorAll('.chapter').forEach(s => revObs.observe(s));
+}, { threshold: 0.1 });
+document.querySelectorAll('.chapter').forEach(s => observer.observe(s));
+
+// ── ACTIVE NAV ──
+const sections = ['sunlight', 'cells', 'inverter', 'storage', 'grid'];
+const navLinks = document.querySelectorAll('.nav-steps a');
 
 function updateNav() {
-  let cur = sections[0];
+  let current = sections[0];
   sections.forEach(id => {
     const el = document.getElementById(id);
-    if (el && window.scrollY >= el.offsetTop - 240) cur = id;
+    if (el && window.scrollY >= el.offsetTop - 200) current = id;
   });
-  sideLinks.forEach(a => a.classList.toggle('active', a.dataset.section === cur));
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.dataset.section === current);
+  });
 }
-window.addEventListener('scroll', updateNav, { passive: true });
-updateNav();
 
-// ════════════════════════════════════
-// PHOTON RAIN — CLOUD AT MIDPOINT
-// ════════════════════════════════════
+// ── PHOTON RAIN INTERACTIVE ──
 (function () {
+  const NS           = 'http://www.w3.org/2000/svg';
   const stage        = document.getElementById('photonStage');
-  const canvas       = document.getElementById('photonCanvas');
+  const svgEl        = document.getElementById('photonSVG');
   const cloudSVG     = document.getElementById('cloudLayer');
+  const panel        = document.getElementById('photonPanel');
   const slider       = document.getElementById('cloudSlider');
   const cloudVal     = document.getElementById('cloudVal');
   const pStatCloud   = document.getElementById('pStatCloud');
@@ -35,779 +41,501 @@ updateNav();
   const pStatCond    = document.getElementById('pStatCond');
   const pPowerFill   = document.getElementById('pPowerFill');
   const noteEl       = document.getElementById('photonNote');
+
   if (!stage) return;
 
-  const ctx = canvas.getContext('2d');
   let cloudCover = 0;
   let photons = [];
+  let W = stage.offsetWidth;
+  let H = stage.offsetHeight;
 
-  const lightImg = new Image();
-  lightImg.src = 'visuals/light.svg';
+  const ICON_HALF = 10;   // half of 20px icon
+  const CLOUD_BTM = 120 * 0.35;
+  const CLOUD_AR  = 40 / 68; // cloud symbol viewBox aspect ratio
 
-  const CLOUD_ZONE = 0.5; // midpoint of stage
+  // ── SVG element pools ──
+  const freePhotons = [];
+  function getPhotonEl() {
+    if (freePhotons.length) {
+      const el = freePhotons.pop();
+      el.style.display = '';
+      return el;
+    }
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('href', '#photon-shape');
+    el.setAttribute('width', ICON_HALF * 2);
+    el.setAttribute('height', ICON_HALF * 2);
+    el.setAttribute('filter', 'url(#photon-glow)');
+    svgEl.appendChild(el);
+    return el;
+  }
+  function releasePhotonEl(el) {
+    el.style.display = 'none';
+    freePhotons.push(el);
+  }
 
-  // Panel hit zone — wide band covering the bottom ~30% of the canvas.
-  // We intentionally use a generous range so photons don't slip through
-  // regardless of CSS perspective offset.
-  const PANEL_HIT_START = 0.68; // photon enters panel zone here
-  const PANEL_HIT_END   = 0.96; // catches everything above ground
-  const NUM_PANELS      = 3;
-  const CELLS_PER_ROW   = 4;
-  const CELLS_PER_COL   = 6;
+  const freeCircles = [];
+  function getCircleEl() {
+    if (freeCircles.length) {
+      const el = freeCircles.pop();
+      el.style.display = '';
+      return el;
+    }
+    const el = document.createElementNS(NS, 'circle');
+    svgEl.appendChild(el);
+    return el;
+  }
+  function releaseCircleEl(el) {
+    el.style.display = 'none';
+    freeCircles.push(el);
+  }
 
-  // Fixed cloud positions — evenly distributed, no erratic shuffling
-  // Each cloud is a cluster of overlapping ellipses for a natural puff shape
-  const CLOUD_PUFFS = [
-    // [cx, cy, rx, ry] — all as fractions of W/H
-    // cluster 1 — left
-    { cx:0.04, cy:0.50, rx:0.07, ry:0.04 },
-    { cx:0.10, cy:0.48, rx:0.09, ry:0.05 },
-    { cx:0.17, cy:0.51, rx:0.08, ry:0.045 },
-    { cx:0.13, cy:0.46, rx:0.06, ry:0.038 },
-    // cluster 2 — left-centre
-    { cx:0.26, cy:0.49, rx:0.08, ry:0.044 },
-    { cx:0.33, cy:0.47, rx:0.10, ry:0.055 },
-    { cx:0.40, cy:0.50, rx:0.08, ry:0.042 },
-    { cx:0.36, cy:0.45, rx:0.06, ry:0.036 },
-    // cluster 3 — centre
-    { cx:0.48, cy:0.51, rx:0.09, ry:0.050 },
-    { cx:0.55, cy:0.48, rx:0.10, ry:0.056 },
-    { cx:0.62, cy:0.51, rx:0.08, ry:0.044 },
-    { cx:0.57, cy:0.45, rx:0.06, ry:0.036 },
-    // cluster 4 — right-centre
-    { cx:0.70, cy:0.49, rx:0.08, ry:0.044 },
-    { cx:0.77, cy:0.47, rx:0.09, ry:0.050 },
-    { cx:0.83, cy:0.50, rx:0.07, ry:0.040 },
-    { cx:0.78, cy:0.45, rx:0.06, ry:0.034 },
-    // cluster 5 — right edge (fills gap near 100%)
-    { cx:0.89, cy:0.50, rx:0.07, ry:0.042 },
-    { cx:0.95, cy:0.48, rx:0.07, ry:0.040 },
-    { cx:0.92, cy:0.45, rx:0.05, ry:0.032 },
-    { cx:0.99, cy:0.51, rx:0.05, ry:0.035 },
+  const cloudDefs = [
+    { cx: 0.18, cy: 0.28, scale: 0.28 },
+    { cx: 0.30, cy: 0.18, scale: 0.22 },
+    { cx: 0.50, cy: 0.22, scale: 0.36 },
+    { cx: 0.64, cy: 0.14, scale: 0.24 },
+    { cx: 0.78, cy: 0.26, scale: 0.30 },
+    { cx: 0.90, cy: 0.17, scale: 0.20 }
   ];
 
-  function drawClouds(W, H, cover) {
-    cloudSVG.setAttribute('width',  W);
-    cloudSVG.setAttribute('height', H);
-    cloudSVG.style.width  = W + 'px';
-    cloudSVG.style.height = H + 'px';
+  function drawClouds(cover) {
+    cloudSVG.setAttribute('width', W);
     cloudSVG.innerHTML = '';
-    if (cover === 0) return;
-
-    const visible = Math.max(1, Math.round(cover / 100 * CLOUD_PUFFS.length));
-    const opacity = 0.38 + (cover / 100) * 0.45;
-
+    const visible = Math.round(cover / 100 * cloudDefs.length);
     for (let i = 0; i < visible; i++) {
-      const c = CLOUD_PUFFS[i];
-      const imgW = c.rx * W * 2.2;
-      const imgH = imgW * 0.55;
-      const el = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-      el.setAttribute('href', 'visuals/cloud.svg');
-      el.setAttribute('x', c.cx * W - imgW / 2);
-      el.setAttribute('y', c.cy * H - imgH / 2);
-      el.setAttribute('width',  imgW);
-      el.setAttribute('height', imgH);
+      const c = cloudDefs[i];
+      const opacity = 0.55 + (cover / 100) * 0.35;
+      const cw = c.scale * W;
+      const ch = cw * CLOUD_AR;
+      const el = document.createElementNS(NS, 'use');
+      el.setAttribute('href', '#cloud-shape');
+      el.setAttribute('x', c.cx * W - cw / 2);
+      el.setAttribute('y', c.cy * 120 - ch / 2);
+      el.setAttribute('width', cw);
+      el.setAttribute('height', ch);
       el.setAttribute('opacity', opacity);
       cloudSVG.appendChild(el);
     }
   }
 
-  function spawnPhoton(W) {
+  function spawnPhoton() {
+    const blocked = Math.random() > (1 - cloudCover / 100);
+    const el = blocked ? getCircleEl() : getPhotonEl();
     return {
       x: Math.random() * W,
-      y: -8,
-      vy: 3.5 + Math.random() * 2.5,   // faster fall so they don't pile up
-      vx: (Math.random() - 0.5) * 0.8,
+      y: -ICON_HALF,
+      vy: 1.8 + Math.random() * 1.4,
+      vx: (Math.random() - 0.5) * 0.6,
       r: 2 + Math.random() * 1.5,
-      alpha: 0.85 + Math.random() * 0.15,
-      blocked: Math.random() < (cloudCover / 100)
+      alpha: 0.7 + Math.random() * 0.3,
+      blocked,
+      el
     };
   }
 
-  // Flash a random cell on one of the 3 panel faces
-  function flashCell(panelIdx) {
-    const pid = panelIdx !== undefined ? panelIdx : Math.floor(Math.random() * NUM_PANELS);
-    const cellIdx = Math.floor(Math.random() * (CELLS_PER_ROW * CELLS_PER_COL));
-    const cellId = `pc${pid}_${cellIdx}`;
-    const cell = document.getElementById(cellId);
-    if (cell) {
-      cell.classList.add('flash');
-      setTimeout(() => cell.classList.remove('flash'), 200);
-    }
-  }
+  function panelY() { return H - 56 - 8; }
 
   function tick() {
-    const W = canvas.width  = stage.offsetWidth;
-    const H = canvas.height = stage.offsetHeight;
-    ctx.clearRect(0, 0, W, H);
+    const rate = Math.round(1 + (1 - cloudCover / 100) * 5);
+    for (let i = 0; i < rate; i++) photons.push(spawnPhoton());
 
-    // Sky gradient
-    const sky = ctx.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, '#070B14');
-    sky.addColorStop(CLOUD_ZONE - 0.05, '#0C1420');
-    sky.addColorStop(1, '#09100F');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    const pY = panelY();
+    const pX = W / 2;
+    const pHalfW = 80;
+    let hitCount = 0;
 
-    // Sun glow
-    const sunG = ctx.createRadialGradient(W * 0.5, 0, 0, W * 0.5, 0, W * 0.45);
-    sunG.addColorStop(0, 'rgba(232,200,74,0.14)');
-    sunG.addColorStop(1, 'rgba(232,200,74,0)');
-    ctx.fillStyle = sunG; ctx.fillRect(0, 0, W, H);
-
-    const cloudY = H * CLOUD_ZONE;
-
-    // Always spawn at full rate — cloud cover only affects whether they get through
-    photons.push(spawnPhoton(W));
-    if (Math.random() < 0.4) photons.push(spawnPhoton(W)); // occasional double spawn for density
-
-    // Update + draw photons
     for (let i = photons.length - 1; i >= 0; i--) {
       const p = photons[i];
       p.x += p.vx;
       p.y += p.vy;
 
-      // Remove blocked photons at cloud layer
-      if (p.blocked && p.y >= cloudY) {
-        photons.splice(i, 1);
-        continue;
-      }
-
-      // Hit detection: generous band at bottom of canvas.
-      // Any unblocked photon entering this zone hits a panel cell.
-      if (!p.blocked && p.y >= H * PANEL_HIT_START) {
-        // Pick which panel based on x position (full width, no gaps between)
-        const pi      = Math.min(NUM_PANELS - 1, Math.floor(p.x / W * NUM_PANELS));
-        const cellCol = Math.min(CELLS_PER_ROW - 1, Math.floor((p.x / W * NUM_PANELS - pi) * CELLS_PER_ROW));
-        const cellRow = Math.min(CELLS_PER_COL - 1, Math.floor(Math.random() * CELLS_PER_COL));
-        const cellIdx = cellRow * CELLS_PER_ROW + cellCol;
-        const cellEl  = document.getElementById(`pc${pi}_${cellIdx}`);
-        if (cellEl) {
-          cellEl.classList.add('flash');
-          setTimeout(() => cellEl.classList.remove('flash'), 200);
+      if (p.blocked && p.y > CLOUD_BTM) {
+        p.alpha -= 0.06;
+        if (p.alpha <= 0) {
+          releaseCircleEl(p.el);
+          photons.splice(i, 1);
+          continue;
         }
+      }
+
+      if (!p.blocked && p.y >= pY - 10 && p.y <= pY + 10 &&
+          p.x >= pX - pHalfW && p.x <= pX + pHalfW) {
+        hitCount++;
+        releasePhotonEl(p.el);
         photons.splice(i, 1);
         continue;
       }
 
-      // Off screen
-      if (p.y > H + 10 || p.x < -10 || p.x > W + 10) {
+      if (p.y > H + 10 || p.x < -20 || p.x > W + 20) {
+        p.blocked ? releaseCircleEl(p.el) : releasePhotonEl(p.el);
         photons.splice(i, 1);
         continue;
       }
 
-      // Draw photon as light.svg icon
-      const size = p.r * 7;
-      ctx.save();
-      ctx.globalAlpha = p.alpha;
-      if (lightImg.complete && lightImg.naturalWidth) {
-        ctx.drawImage(lightImg, p.x - size / 2, p.y - size / 2, size, size);
+      if (p.blocked) {
+        p.el.setAttribute('cx', p.x);
+        p.el.setAttribute('cy', p.y);
+        p.el.setAttribute('r', p.r);
+        p.el.setAttribute('fill', `rgba(200,200,220,${(p.alpha * 0.5).toFixed(2)})`);
       } else {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
-        ctx.fill();
+        p.el.setAttribute('x', p.x - ICON_HALF);
+        p.el.setAttribute('y', p.y - ICON_HALF);
+        p.el.setAttribute('opacity', p.alpha.toFixed(2));
       }
-      ctx.restore();
     }
 
-    if (photons.length > 400) photons.splice(0, photons.length - 400);
+    if (photons.length > 400) {
+      const excess = photons.splice(0, photons.length - 400);
+      excess.forEach(p => p.blocked ? releaseCircleEl(p.el) : releasePhotonEl(p.el));
+    }
+
+    panel.classList.toggle('lit', hitCount > 0);
     requestAnimationFrame(tick);
   }
 
   function update(val) {
     cloudCover = +val;
-    const pass = Math.max(0, 1 - cloudCover / 100);
-    const pct  = Math.round(pass * 100);
+    const passRate = Math.max(0, 1 - cloudCover / 100);
+    const pct = Math.round(passRate * 100);
+
     cloudVal.textContent     = cloudCover + '%';
     pStatCloud.textContent   = cloudCover + '%';
     pStatPhotons.textContent = pct + '%';
     pStatOutput.textContent  = pct + '%';
     pPowerFill.style.width   = pct + '%';
     pPowerFill.style.background = pct > 60 ? 'var(--yellow)' : pct > 25 ? '#C8A030' : 'var(--gray)';
-    [pStatPhotons, pStatOutput, pStatCond].forEach(el => el.classList.toggle('low', cloudCover > 60));
 
     let cond, note;
-    if      (cloudCover === 0)  { cond = 'Clear';         note = 'Full sun — photons travel unobstructed and hit panels across the full array.'; }
-    else if (cloudCover <= 25)  { cond = 'Mostly Clear';  note = 'Light cloud at the midpoint. Most photons break through — output stays strong.'; }
-    else if (cloudCover <= 50)  { cond = 'Partly Cloudy'; note = 'Cloud bank at the midzone blocking roughly half the photon stream.'; }
-    else if (cloudCover <= 75)  { cond = 'Overcast';      note = 'Heavy cloud. Most photons are stopped before reaching the panels — power drops sharply.'; }
-    else                        { cond = 'Dense Cloud';   note = 'Near-total blockage. This is exactly why battery storage is critical.'; }
+    if      (cloudCover === 0)  { cond = 'Clear';         note = 'Full sun — photons travel unobstructed from the sun straight to the panel.'; }
+    else if (cloudCover <= 25)  { cond = 'Mostly Clear';  note = 'Light cloud. Most photons still reach the panel — output remains high.'; }
+    else if (cloudCover <= 50)  { cond = 'Partly Cloudy'; note = 'Significant scattering. Clouds absorb and redirect photons before they reach silicon.'; }
+    else if (cloudCover <= 75)  { cond = 'Overcast';      note = 'Heavy cloud cover. Most photons are blocked — diffuse light only reaches the panel.'; }
+    else                        { cond = 'Dense Cloud';   note = 'Near-total blockage. This is where battery storage becomes essential to keep your home running.'; }
+
     pStatCond.textContent = cond;
     noteEl.textContent    = note;
-    drawClouds(stage.offsetWidth, stage.offsetHeight, cloudCover);
+
+    [pStatPhotons, pStatOutput, pStatCond].forEach(el => {
+      el.classList.toggle('low', cloudCover > 60);
+    });
+
+    drawClouds(cloudCover);
   }
 
   slider.addEventListener('input', () => update(slider.value));
+  window.addEventListener('resize', () => {
+    W = stage.offsetWidth;
+    H = stage.offsetHeight;
+    drawClouds(cloudCover);
+  });
+
   update(0);
-  tick();
-  window.addEventListener('resize', () => drawClouds(stage.offsetWidth, stage.offsetHeight, cloudCover));
+  requestAnimationFrame(tick);
 })();
 
-// ════════════════════════════════════
-// CH2 — SOLAR CELL LAYER JOURNEY
-// ════════════════════════════════════
+// ── ELECTRON PINBALL INTERACTIVE ──
 (function () {
-  const stage   = document.getElementById('journeyStage');
-  const canvas  = document.getElementById('journeyCanvas');
-  const slider  = document.getElementById('journeySlider');
-  const nameEl  = document.getElementById('journeyLayerName');
-  const descEl  = document.getElementById('journeyLayerDesc');
-  const depthEl = document.getElementById('journeyDepth');
+  const NS        = 'http://www.w3.org/2000/svg';
+  const ICON_HALF = 10;
+
+  const stage   = document.getElementById('pinballStage');
+  const canvas  = document.getElementById('pinballCanvas');
+  const svgEl   = document.getElementById('pinballSVG');
+  const noteEl  = document.getElementById('pinballNote');
   if (!stage) return;
 
   const ctx = canvas.getContext('2d');
-  let animT = 0, currentProgress = 0, targetProgress = 0;
-  let animParticles = [], lastLayerId = '';
+  let fired = 0, freed = 0;
+  let particles = [];
+  let atoms = [];
+  let animT = 0;
 
-  const LAYERS = [
-    { id:'sun',      name:'Sunlight',               depth:'Entry point', heightFrac:0.10,
-      color:'rgba(255,243,176,0.08)', labelColor:'#FFF3B0',
-      desc:'This is a tiny burst of sunlight called a photon. Think of it like a small ball of energy fired from the sun. It has just enough punch to knock something loose inside the panel.' },
-    { id:'glass',    name:'Glass Cover',             depth:'Outermost layer',        heightFrac:0.10,
-      color:'rgba(56,189,248,0.09)', labelColor:'#7DD3FC',
-      desc:'The first thing sunlight hits is a tough piece of glass — like a window, but built to last decades outdoors. It lets almost all the light through while protecting everything underneath.' },
-    { id:'ar',       name:'Anti-Reflective Coating', depth:'Thinner than a hair',       heightFrac:0.07,
-      color:'rgba(167,139,250,0.11)', labelColor:'#C4B5FD',
-      desc:'Without this invisible coating, most of the sunlight would just bounce off the panel like light off a mirror. This layer stops that from happening and lets the light sink in.' },
-    { id:'ntype',    name:'N-Type Silicon',          depth:'Just under the surface',        heightFrac:0.14,
-      color:'rgba(56,189,248,0.13)', labelColor:'#38BDF8',
-      desc:'This is silicon — the same material computer chips are made from. This top half is packed with extra tiny particles called electrons, just waiting to be knocked loose.' },
-    { id:'junction', name:'P-N Junction',            depth:'The critical boundary',         heightFrac:0.08,
-      color:'rgba(232,200,74,0.20)', labelColor:'#E8C84A',
-      desc:'This is the moment everything happens. The sunlight smashes into an atom and knocks an electron free — like a cue ball hitting a snooker ball. The electron is now moving, and moving electrons are electricity.' },
-    { id:'ptype',    name:'P-Type Silicon',          depth:'Middle of the cell',        heightFrac:0.18,
-      color:'rgba(251,146,60,0.13)', labelColor:'#FB923C',
-      desc:'The bottom half of the silicon pushes the freed electron in one direction and lets the gap it left behind drift the other way. This separation is what keeps the electricity flowing in one direction.' },
-    { id:'contact',  name:'Back Metal Contact',      depth:'Bottom of the cell',        heightFrac:0.10,
-      color:'rgba(52,211,153,0.11)', labelColor:'#34D399',
-      desc:'This is a metal plate at the very bottom. It catches all the electrons that have made the journey through the cell and sends them out into a wire — like a drain collecting water.' },
-    { id:'dc',       name:'Direct Current (DC)',     depth:'Leaving the cell',        heightFrac:0.13,
-      color:'rgba(232,200,74,0.07)', labelColor:'#E8C84A',
-      desc:'The electrons are now flowing through a wire as electricity. This is called direct current — it flows in one direction, like water down a pipe. One cell doesn’t produce much, but hundreds of them together power your home.' },
-  ];
-
-  function getLayerBands(H) {
-    const bands = []; let y = 0;
-    for (const l of LAYERS) { const h = l.heightFrac * H; bands.push({ y, h }); y += h; }
-    return bands;
+  // Photon SVG element pool — reuses <use href="#photon-shape"> elements
+  const freePhotons = [];
+  function getPhotonEl() {
+    if (freePhotons.length) {
+      const el = freePhotons.pop();
+      el.style.display = '';
+      return el;
+    }
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('href', '#photon-shape');
+    el.setAttribute('width', ICON_HALF * 2);
+    el.setAttribute('height', ICON_HALF * 2);
+    el.setAttribute('filter', 'url(#photon-glow)');
+    svgEl.appendChild(el);
+    return el;
+  }
+  function releasePhotonEl(el) {
+    el.style.display = 'none';
+    freePhotons.push(el);
   }
 
-  function layerIdx(p) { return Math.min(LAYERS.length - 1, Math.floor(p * LAYERS.length)); }
-  function photonY(p, H) { return p * H * 0.95 + 4; }
-
-  function spawnJunctionParticles(px, py) {
-    animParticles = [];
-    for (let i = 0; i < 5; i++) {
-      const angle = -Math.PI/2 + (Math.random()-0.5)*0.8;
-      const speed = 2 + Math.random()*2;
-      animParticles.push({ type:'electron', x:px, y:py, vx:Math.cos(angle-0.6)*speed, vy:Math.sin(angle-0.6)*speed, alpha:1, r:4, life:70 });
-      animParticles.push({ type:'hole',     x:px, y:py, vx:Math.cos(angle+0.6)*speed, vy:Math.sin(angle+0.6)*speed*0.5, alpha:1, r:4, life:70 });
+  function buildAtoms(W, H) {
+    atoms = [];
+    const cols = 9, rows = 7;
+    const padX = W * 0.06, padY = H * 0.1;
+    const spacX = (W - padX * 2) / (cols - 1);
+    const spacY = (H - padY * 2) / (rows - 1);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        atoms.push({
+          x: padX + c * spacX + (Math.random() - 0.5) * spacX * 0.25,
+          y: padY + r * spacY + (Math.random() - 0.5) * spacY * 0.2,
+          r: 6 + Math.random() * 3,
+          lit: false, litTimer: 0,
+          energetic: Math.random() > 0.4
+        });
+      }
     }
   }
 
-  function spawnCurrentParticles(W, H) {
-    animParticles = [];
-    for (let i = 0; i < 8; i++) {
-      animParticles.push({ type:'current', x:W*0.08 + i*W*0.11, y:H*0.97, vx:2.5, vy:0, alpha:1, r:3, life:120+i*8 });
-    }
-  }
-
-  function draw(W, H) {
-    ctx.clearRect(0, 0, W, H);
-    const bands = getLayerBands(H);
-    const prog  = currentProgress;
-    const li    = layerIdx(prog);
-    const pY    = photonY(prog, H);
-    const pX    = W * 0.5;
-
-    // ── DRAW LAYER BANDS ──
-    LAYERS.forEach((l, i) => {
-      const b = bands[i];
-      const active = i === li;
-      const past   = i < li;
-
-      // base fill
-      ctx.fillStyle = l.color;
-      ctx.fillRect(0, b.y, W, b.h);
-
-      // active boost
-      if (active) {
-        ctx.fillStyle = l.color.replace(')', ',1)').replace('rgba(', 'rgba(').replace(/,\s*[\d.]+\)$/, ', 0.32)');
-        ctx.fillRect(0, b.y, W, b.h);
-        // glow edge
-        const eg = ctx.createLinearGradient(0, b.y, 0, b.y+8);
-        eg.addColorStop(0, l.labelColor + '55');
-        eg.addColorStop(1, 'transparent');
-        ctx.fillStyle = eg; ctx.fillRect(0, b.y, W, 8);
-      }
-
-      // separator line
-      ctx.strokeStyle = active ? l.labelColor + '55' : 'rgba(242,239,233,0.06)';
-      ctx.lineWidth   = active ? 1.5 : 0.5;
-      ctx.beginPath(); ctx.moveTo(0, b.y); ctx.lineTo(W, b.y); ctx.stroke();
-
-      // left label
-      ctx.fillStyle = active ? l.labelColor : (past ? 'rgba(242,239,233,0.30)' : 'rgba(242,239,233,0.14)');
-      ctx.font = `${active ? 600 : 400} ${active ? 11 : 10}px Barlow, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(l.name.toUpperCase(), 14, b.y + b.h*0.5 + 4);
-
-      // depth right
-      if (active) {
-        ctx.fillStyle = 'rgba(242,239,233,0.3)';
-        ctx.font = '400 10px Barlow, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(l.depth, W - 14, b.y + b.h*0.5 + 4);
-        ctx.textAlign = 'left';
-      }
+  function spawnPhoton(clickX) {
+    fired++;
+    document.getElementById('pbFired').textContent = fired;
+    noteEl.textContent = 'Photon entering silicon lattice…';
+    const el = getPhotonEl();
+    particles.push({
+      type: 'photon', x: clickX, y: 0,
+      vx: (Math.random() - 0.5) * 1.2,
+      vy: 3.5 + Math.random() * 2,
+      r: 4, alpha: 1, bounces: 0,
+      maxBounces: 2 + Math.floor(Math.random() * 3),
+      el
     });
-
-    // ── PHOTON TRAIL ──
-    for (let t = 30; t >= 0; t--) {
-      const ty = pY - t * 4;
-      if (ty < 0) continue;
-      const ta = (1 - t/30) * 0.3;
-      ctx.beginPath(); ctx.arc(pX, ty, 3, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(255,243,176,${ta})`; ctx.fill();
-    }
-
-    // photon glow
-    const g = ctx.createRadialGradient(pX, pY, 0, pX, pY, 24);
-    g.addColorStop(0, 'rgba(255,250,200,0.75)');
-    g.addColorStop(0.4, 'rgba(232,200,74,0.35)');
-    g.addColorStop(1, 'rgba(232,200,74,0)');
-    ctx.beginPath(); ctx.arc(pX, pY, 24, 0, Math.PI*2);
-    ctx.fillStyle = g; ctx.fill();
-
-    // photon core
-    ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
-    ctx.fillStyle = '#FFFDE0'; ctx.fill();
-
-    // ── TRIGGER LAYER PARTICLES ──
-    const currentId = LAYERS[li].id;
-    if (currentId === 'junction' && lastLayerId !== 'junction') {
-      spawnJunctionParticles(pX, pY);
-    } else if (currentId === 'dc' && lastLayerId !== 'dc') {
-      spawnCurrentParticles(W, H);
-    }
-    lastLayerId = currentId;
-
-    // ── DRAW PARTICLES ──
-    for (let i = animParticles.length - 1; i >= 0; i--) {
-      const p = animParticles[i];
-      p.x += p.vx; p.y += p.vy; p.life--;
-      p.alpha = Math.max(0, p.life / 70);
-      if (p.life <= 0) { animParticles.splice(i, 1); continue; }
-
-      if (p.type === 'electron') {
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(56,189,248,${p.alpha})`; ctx.fill();
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r*2.8, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(56,189,248,${p.alpha*0.18})`; ctx.fill();
-      }
-      if (p.type === 'hole') {
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.strokeStyle = `rgba(251,146,60,${p.alpha})`; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r*2.5, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(251,146,60,${p.alpha*0.12})`; ctx.fill();
-      }
-      if (p.type === 'current') {
-        if (p.x > W - 10) { animParticles.splice(i, 1); continue; }
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(232,200,74,${p.alpha})`; ctx.fill();
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r*2.2, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(232,200,74,${p.alpha*0.18})`; ctx.fill();
-      }
-    }
-
-    // DC wire at output
-    if (prog > 0.80) {
-      const wa = Math.min(1, (prog - 0.80) / 0.08);
-      const wireY = H * 0.975;
-      ctx.strokeStyle = `rgba(232,200,74,${wa*0.65})`;
-      ctx.lineWidth = 2; ctx.setLineDash([6,4]);
-      ctx.beginPath(); ctx.moveTo(W*0.08, wireY); ctx.lineTo(W*0.92, wireY); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = `rgba(232,200,74,${wa*0.45})`;
-      ctx.font = '500 10px Barlow, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('DC OUTPUT WIRE', W*0.5, wireY - 7);
-      ctx.textAlign = 'left';
-    }
-
-    animT += 0.02;
   }
 
-  function updateInfo(prog) {
-    const l = LAYERS[layerIdx(prog)];
-    nameEl.textContent  = l.name;
-    descEl.textContent  = l.desc;
-    depthEl.textContent = l.depth;
+  function spawnElectron(x, y) {
+    freed++;
+    document.getElementById('pbFreed').textContent = freed;
+    document.getElementById('pbCurrent').textContent = (freed * 1.4).toFixed(0) + ' mA';
+    document.getElementById('pbVoltage').textContent = Math.min(0.65, freed * 0.05).toFixed(2) + ' V';
+    noteEl.textContent = 'Electron freed! Electric field drives it toward the wire — current flows.';
+    particles.push({
+      type: 'electron', x, y,
+      vx: (Math.random() - 0.5) * 2.5,
+      vy: 2.8 + Math.random() * 1.5,
+      r: 3.5, alpha: 1
+    });
   }
 
   function tick() {
     const W = canvas.width  = stage.offsetWidth;
     const H = canvas.height = stage.offsetHeight;
-    currentProgress += (targetProgress - currentProgress) * 0.10;
-    draw(W, H);
+    ctx.clearRect(0, 0, W, H);
+
+    if (atoms.length === 0) buildAtoms(W, H);
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#0A0E18'); bg.addColorStop(0.5, '#0D1420'); bg.addColorStop(1, '#0A0C14');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(56,189,248,0.05)'; ctx.fillRect(0, 0, W, H * 0.5);
+    ctx.fillStyle = 'rgba(251,146,60,0.05)'; ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+    ctx.font = '500 10px Barlow, sans-serif';
+    ctx.fillStyle = 'rgba(56,189,248,0.3)'; ctx.fillText('N-TYPE SILICON', 14, 22);
+    ctx.fillStyle = 'rgba(251,146,60,0.3)'; ctx.fillText('P-TYPE SILICON', 14, H * 0.5 + 22);
+
+    ctx.strokeStyle = 'rgba(232,200,74,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(0, H * 0.5); ctx.lineTo(W, H * 0.5); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(232,200,74,0.35)'; ctx.fillText('P-N JUNCTION', W / 2 - 36, H * 0.5 - 6);
+
+    ctx.strokeStyle = 'rgba(52,211,153,0.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, H - 10); ctx.lineTo(W, H - 10); ctx.stroke();
+    ctx.fillStyle = 'rgba(52,211,153,0.25)'; ctx.fillText('CURRENT COLLECTOR WIRE', 14, H - 16);
+
+    atoms.forEach(a => {
+      if (a.litTimer > 0) { a.litTimer--; if (a.litTimer === 0) a.lit = false; }
+      ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
+      ctx.fillStyle = a.lit ? 'rgba(232,200,74,0.9)' : (a.y < H * 0.5 ? 'rgba(56,189,248,0.55)' : 'rgba(251,146,60,0.55)');
+      ctx.fill();
+      if (!a.lit) {
+        const angle = animT * 1.8 + a.x * 0.05;
+        ctx.beginPath(); ctx.arc(a.x + Math.cos(angle) * (a.r + 5), a.y + Math.sin(angle) * (a.r + 5), 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = a.y < H * 0.5 ? 'rgba(56,189,248,0.75)' : 'rgba(251,146,60,0.75)'; ctx.fill();
+      }
+    });
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+
+      if (p.type === 'photon') {
+        let hit = false;
+        for (const a of atoms) {
+          const dx = p.x - a.x, dy = p.y - a.y;
+          if (Math.sqrt(dx * dx + dy * dy) < a.r + p.r) {
+            a.lit = true; a.litTimer = 22;
+            if (p.bounces < p.maxBounces) {
+              p.vx = (Math.random() - 0.5) * 3;
+              p.vy = Math.abs(p.vy) * (Math.random() > 0.3 ? 1 : -0.5) + 1;
+              p.bounces++;
+            } else {
+              if (a.energetic) spawnElectron(a.x, a.y);
+              releasePhotonEl(p.el);
+              particles.splice(i, 1); hit = true;
+            }
+            break;
+          }
+        }
+        if (hit) continue;
+        p.el.setAttribute('x', p.x - ICON_HALF);
+        p.el.setAttribute('y', p.y - ICON_HALF);
+        p.el.setAttribute('opacity', p.alpha.toFixed(2));
+      }
+
+      if (p.type === 'electron') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56,189,248,${p.alpha})`; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56,189,248,${p.alpha * 0.15})`; ctx.fill();
+        if (p.y > H - 14) p.alpha -= 0.07;
+      }
+
+      if (p.alpha <= 0 || p.y > H + 10 || p.y < -20) {
+        if (p.type === 'photon') releasePhotonEl(p.el);
+        particles.splice(i, 1);
+      }
+    }
+
+    if (particles.length > 300) {
+      const excess = particles.splice(0, particles.length - 300);
+      excess.forEach(p => { if (p.type === 'photon') releasePhotonEl(p.el); });
+    }
+    animT += 0.02;
     requestAnimationFrame(tick);
   }
 
-  slider.addEventListener('input', () => {
-    targetProgress = slider.value / 1000;
-    updateInfo(targetProgress);
+  stage.addEventListener('click', e => {
+    const rect = stage.getBoundingClientRect();
+    spawnPhoton(e.clientX - rect.left);
   });
 
-  updateInfo(0);
   tick();
 })();
 
-
-
-
-// ════════════════════════════════════
-// CH5 — DAY IN THE LIFE TIMELINE
-// ════════════════════════════════════
+// ── TOP-DOWN MAP INTERACTIVE ──
 (function () {
-  const stage   = document.getElementById('gridStage');
-  const canvas  = document.getElementById('gridCanvas');
-  const hint    = document.getElementById('timelineDragHint');
-  const tlTime     = document.getElementById('tlTime');
-  const tlSolar    = document.getElementById('tlSolar');
-  const tlUsage    = document.getElementById('tlUsage');
-  const tlFlow     = document.getElementById('tlFlow');
-  const tlCreds    = document.getElementById('tlCredits');
-  const noteEl     = document.getElementById('gridNote');
-  const explainer  = document.getElementById('tlExplainer');
-  const tlIcon     = document.getElementById('tlIcon');
-  const tlStatus   = document.getElementById('tlStatus');
-  const tlNet      = document.getElementById('tlNet');
-  if (!stage) return;
+  const NS     = 'http://www.w3.org/2000/svg';
+  const canvas = document.getElementById('mapCanvas');
+  const mapSVG = document.getElementById('mapSVG');
+  if (!canvas) return;
 
   const ctx = canvas.getContext('2d');
+  let solar = 80;
+  let arrows = [];
 
-  // t = 0 → midnight start, t = 1 → midnight end (full 24h)
-  let timeT = 0.5; // start at noon
-  let dragging = false, startX = 0, startT = 0.5;
-  let hasDragged = false;
+  const HOUSES = [
+    { x: .15, y: .25 }, { x: .35, y: .25 }, { x: .55, y: .25 }, { x: .75, y: .25 },
+    { x: .15, y: .65 }, { x: .35, y: .65 }, { x: .55, y: .65 }, { x: .75, y: .65 }
+  ];
+  const SUBSTATION = { x: .50, y: .47 };
+  const HOUSE_SZ = 14;
 
-  // ── DATA CURVES ──
-  // Solar: bell curve, rises ~6am (t=0.25), peaks noon (t=0.5), sets ~8pm (t=0.833)
-  function solarKW(t) {
-    if (t < 0.25 || t > 0.833) return 0;
-    const norm = (t - 0.25) / (0.833 - 0.25);
-    return Math.max(0, Math.sin(norm * Math.PI) * 7.2);
+  // 8 permanent <use> elements — swap between house-lit-shape and house-dim-shape
+  const houseEls = HOUSES.map(() => {
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('width', HOUSE_SZ * 2);
+    el.setAttribute('height', HOUSE_SZ * 2);
+    mapSVG.appendChild(el);
+    return el;
+  });
+
+  function updateHouseIcons(W, H) {
+    HOUSES.forEach((h, i) => {
+      const lit = solar > 10 + i * 10;
+      houseEls[i].setAttribute('href', lit ? '#house-lit-shape' : '#house-dim-shape');
+      houseEls[i].setAttribute('x', h.x * W - HOUSE_SZ);
+      houseEls[i].setAttribute('y', h.y * H - HOUSE_SZ);
+    });
   }
 
-  // Home usage: higher morning & evening, lower midday
-  function usageKW(t) {
-    const h = t * 24; // hour of day
-    if (h < 5)  return 0.8;
-    if (h < 8)  return 3.2;
-    if (h < 17) return 1.6;
-    if (h < 22) return 3.8;
-    return 1.2;
+  function spawnArrow(hi) {
+    const h = HOUSES[hi];
+    arrows.push({ hx: h.x, hy: h.y, t: 0, speed: 0.014 + Math.random() * 0.008 });
   }
-
-  // Time string from t
-  function timeStr(t) {
-    const totalMin = Math.round(t * 24 * 60) % (24 * 60);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    const ap = h < 12 ? 'AM' : 'PM';
-    const h12 = h % 12 || 12;
-    return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
-  }
-
-  // Cumulative net export up to time t (kWh)
-  function creditsUpTo(t) {
-    let total = 0;
-    const steps = 200;
-    for (let i = 0; i < steps; i++) {
-      const ti = (i / steps) * t;
-      const net = solarKW(ti) - usageKW(ti);
-      if (net > 0) total += net * (t / steps);
-    }
-    return total;
-  }
-
-  // Sky colour for time of day
-  function skyColor(t) {
-    const h = t * 24;
-    if (h < 5  || h > 22) return ['#03040A', '#08060F'];
-    if (h < 6)  return ['#0D0818', '#2A1020'];
-    if (h < 7)  return ['#1A0E28', '#6B2A20'];
-    if (h < 8)  return ['#0E1830', '#4A6080'];
-    if (h < 18) return ['#060E1A', '#0A1828'];
-    if (h < 19) return ['#0E1830', '#4A6080'];
-    if (h < 20) return ['#1A0E28', '#6B2A20'];
-    if (h < 21) return ['#0D0818', '#2A1020'];
-    return ['#03040A', '#08060F'];
-  }
-
-  function lerp(a, b, t) { return a + (b - a) * t; }
 
   function draw() {
-    canvas.width  = stage.offsetWidth;
-    canvas.height = stage.offsetHeight;
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // ── LAYOUT ──
-    const chartTop    = 44;      // top of chart area
-    const chartBot    = H - 52;  // bottom of chart area
-    const chartH      = chartBot - chartTop;
-    const chartLeft   = 42;
-    const chartRight  = W - 20;
-    const chartW      = chartRight - chartLeft;
-    const maxKW       = 8;       // max Y value
+    ctx.fillStyle = '#07090E'; ctx.fillRect(0, 0, W, H);
 
-    function xFromT(t)  { return chartLeft + t * chartW; }
-    function yFromKW(k) { return chartBot - (k / maxKW) * chartH; }
+    // roads
+    ctx.strokeStyle = 'rgba(240,237,230,0.07)'; ctx.lineWidth = 8;
+    [0.27, 0.47, 0.70].forEach(y => {
+      ctx.beginPath(); ctx.moveTo(0, H * y); ctx.lineTo(W, H * y); ctx.stroke();
+    });
+    [0.10, 0.25, 0.45, 0.65, 0.85].forEach(x => {
+      ctx.beginPath(); ctx.moveTo(W * x, 0); ctx.lineTo(W * x, H); ctx.stroke();
+    });
 
-    // ── SKY GRADIENT (top strip above chart) ──
-    const [skyTop, skyBot] = skyColor(timeT);
-    const skyG = ctx.createLinearGradient(0, 0, 0, chartTop + 4);
-    skyG.addColorStop(0, skyTop); skyG.addColorStop(1, skyBot);
-    ctx.fillStyle = skyG; ctx.fillRect(0, 0, W, chartTop + 4);
+    // road labels
+    ctx.fillStyle = 'rgba(240,237,230,0.08)'; ctx.font = '500 9px Barlow, sans-serif';
+    ctx.fillText('SOLAR AVE', W * 0.11, H * 0.26);
+    ctx.fillText('GRID RD',   W * 0.11, H * 0.46);
 
-    // ── CHART BACKGROUND ──
-    ctx.fillStyle = '#06080E'; ctx.fillRect(0, chartTop, W, H - chartTop);
-
-    // ── HORIZONTAL GRID LINES ──
-    ctx.strokeStyle = 'rgba(242,239,233,0.05)'; ctx.lineWidth = 1;
-    [0, 2, 4, 6, 8].forEach(kw => {
-      const y = yFromKW(kw);
-      ctx.beginPath(); ctx.moveTo(chartLeft, y); ctx.lineTo(chartRight, y); ctx.stroke();
-      ctx.fillStyle = 'rgba(242,239,233,0.18)';
-      ctx.font = '400 9px Barlow, sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText(kw + ' kW', chartLeft - 6, y + 3);
+    // house labels — bodies are SVG <use> elements
+    ctx.font = '500 8px Barlow, sans-serif'; ctx.textAlign = 'center';
+    HOUSES.forEach((h, i) => {
+      const hx = h.x * W, hy = h.y * H;
+      ctx.fillStyle = 'rgba(240,237,230,0.3)';
+      ctx.fillText('H-0' + (i + 1), hx, hy + HOUSE_SZ + 10);
+      if (Math.random() < 0.02 * (solar / 100)) spawnArrow(i);
     });
     ctx.textAlign = 'left';
 
-    // ── FILL AREAS ──
-    // Build solar and usage paths first
-    const STEPS = 300;
+    // substation
+    const sx = SUBSTATION.x * W, sy = SUBSTATION.y * H;
+    ctx.fillStyle   = 'rgba(232,200,74,0.12)';
+    ctx.strokeStyle = 'rgba(232,200,74,0.6)'; ctx.lineWidth = 1.5;
+    ctx.fillRect(sx - 20, sy - 20, 40, 40); ctx.strokeRect(sx - 20, sy - 20, 40, 40);
+    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 24);
+    glow.addColorStop(0, 'rgba(232,200,74,0.2)'); glow.addColorStop(1, 'rgba(232,200,74,0)');
+    ctx.beginPath(); ctx.arc(sx, sy, 24, 0, Math.PI * 2); ctx.fillStyle = glow; ctx.fill();
+    ctx.fillStyle = 'rgba(232,200,74,0.7)'; ctx.font = 'bold 9px Barlow, sans-serif';
+    ctx.textAlign = 'center'; ctx.fillText('SUB', sx, sy + 3);
+    ctx.fillStyle = 'rgba(232,200,74,0.35)'; ctx.font = '500 8px Barlow, sans-serif';
+    ctx.fillText('SUBSTATION', sx, sy + 30); ctx.textAlign = 'left';
 
-    // Export fill (solar > usage) — green
-    ctx.beginPath();
-    ctx.moveTo(chartLeft, chartBot);
-    for (let i = 0; i <= STEPS; i++) {
-      const t  = i / STEPS;
-      const s  = solarKW(t);
-      const u  = usageKW(t);
-      const y  = yFromKW(Math.min(s, u));
-      i === 0 ? ctx.moveTo(xFromT(t), y) : ctx.lineTo(xFromT(t), y);
-    }
-    // close along solar curve backward then usage forward — just fill between curves
-    // Simpler: draw two separate fills
-    ctx.closePath();
+    // update SVG house icons to match current dimensions and solar level
+    updateHouseIcons(W, H);
 
-    // Export region (solar - usage where solar > usage)
-    ctx.beginPath();
-    for (let i = 0; i <= STEPS; i++) {
-      const t = i / STEPS;
-      const s = solarKW(t), u = usageKW(t);
-      if (s > u) { i === 0 || solarKW((i-1)/STEPS) <= usageKW((i-1)/STEPS) ? ctx.moveTo(xFromT(t), yFromKW(s)) : ctx.lineTo(xFromT(t), yFromKW(s)); }
-    }
-    for (let i = STEPS; i >= 0; i--) {
-      const t = i / STEPS;
-      const s = solarKW(t), u = usageKW(t);
-      if (s > u) ctx.lineTo(xFromT(t), yFromKW(u));
-    }
-    ctx.closePath();
-    const exportFill = ctx.createLinearGradient(0, yFromKW(maxKW), 0, chartBot);
-    exportFill.addColorStop(0, 'rgba(52,211,153,0.28)');
-    exportFill.addColorStop(1, 'rgba(52,211,153,0.04)');
-    ctx.fillStyle = exportFill; ctx.fill();
-
-    // Import region (usage > solar) — blue
-    ctx.beginPath();
-    let importStarted = false;
-    for (let i = 0; i <= STEPS; i++) {
-      const t = i / STEPS;
-      const s = solarKW(t), u = usageKW(t);
-      if (u > s) {
-        const x = xFromT(t);
-        if (!importStarted) { ctx.moveTo(x, yFromKW(u)); importStarted = true; }
-        else ctx.lineTo(x, yFromKW(u));
-      } else if (importStarted) {
-        importStarted = false; ctx.closePath();
-      }
-    }
-    if (importStarted) ctx.closePath();
-    // Redo cleanly as full region
-    ctx.beginPath();
-    for (let i = 0; i <= STEPS; i++) {
-      const t = i / STEPS;
-      const u = usageKW(t), s = solarKW(t);
-      const top = Math.max(u, s === 0 ? u : Math.min(u, s));
-      if (u >= s) {
-        const x = xFromT(t);
-        i === 0 ? ctx.moveTo(x, yFromKW(u)) : ctx.lineTo(x, yFromKW(u));
-      }
-    }
-    for (let i = STEPS; i >= 0; i--) {
-      const t = i / STEPS;
-      const u = usageKW(t), s = solarKW(t);
-      if (u >= s) ctx.lineTo(xFromT(t), yFromKW(s));
-    }
-    ctx.closePath();
-    const importFill = ctx.createLinearGradient(0, yFromKW(maxKW), 0, chartBot);
-    importFill.addColorStop(0, 'rgba(56,189,248,0.22)');
-    importFill.addColorStop(1, 'rgba(56,189,248,0.03)');
-    ctx.fillStyle = importFill; ctx.fill();
-
-    // ── SOLAR CURVE ──
-    ctx.beginPath();
-    for (let i = 0; i <= STEPS; i++) {
-      const t = i / STEPS;
-      const x = xFromT(t), y = yFromKW(solarKW(t));
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = 'rgba(232,200,74,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
-
-    // ── USAGE LINE ──
-    ctx.beginPath();
-    for (let i = 0; i <= STEPS; i++) {
-      const t = i / STEPS;
-      const x = xFromT(t), y = yFromKW(usageKW(t));
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = 'rgba(242,239,233,0.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // ── LEGEND ──
-    ctx.font = '500 10px Barlow, sans-serif'; ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(232,200,74,0.75)';
-    ctx.fillRect(chartLeft, 10, 14, 3); ctx.fillText('Solar output', chartLeft + 18, 16);
-    ctx.fillStyle = 'rgba(242,239,233,0.4)';
-    ctx.fillRect(chartLeft + 110, 10, 14, 3); ctx.fillText('Home usage', chartLeft + 128, 16);
-    ctx.fillStyle = 'rgba(52,211,153,0.65)';
-    ctx.fillRect(chartLeft + 218, 8, 10, 10); ctx.fillText('Exporting', chartLeft + 232, 16);
-    ctx.fillStyle = 'rgba(56,189,248,0.55)';
-    ctx.fillRect(chartLeft + 298, 8, 10, 10); ctx.fillText('Importing', chartLeft + 312, 16);
-
-    // ── TIME AXIS ──
-    ctx.fillStyle = 'rgba(242,239,233,0.2)'; ctx.font = '400 9px Barlow, sans-serif';
-    ['12am','3am','6am','9am','12pm','3pm','6pm','9pm','12am'].forEach((label, i) => {
-      const t = i / 8;
-      const x = xFromT(t);
-      ctx.textAlign = 'center'; ctx.fillText(label, x, chartBot + 14);
-      ctx.strokeStyle = 'rgba(242,239,233,0.06)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, chartTop); ctx.lineTo(x, chartBot); ctx.stroke();
-    });
-
-    // ── SUN ──
-    const sunX = xFromT(timeT);
-    const sunH = solarKW(timeT);
-    const sunVisible = sunH > 0.1;
-    const sunY = sunVisible
-      ? lerp(chartTop + 8, yFromKW(sunH) - 20, sunH / maxKW)
-      : chartTop + 6;
-    const sunR = 12 + sunH * 1.2;
-
-    if (sunVisible) {
-      const sg = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR * 2.5);
-      sg.addColorStop(0, `rgba(232,200,74,${0.25 + sunH/maxKW*0.3})`);
-      sg.addColorStop(1, 'rgba(232,200,74,0)');
-      ctx.beginPath(); ctx.arc(sunX, sunY, sunR*2.5, 0, Math.PI*2);
-      ctx.fillStyle = sg; ctx.fill();
-    }
-    ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
-    ctx.fillStyle = sunVisible
-      ? `radial-gradient(circle, #FFF3B0, #E8C84A)`
-      : 'rgba(242,239,233,0.12)';
-    // fallback solid fill
-    const sunFill = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
-    sunFill.addColorStop(0, sunVisible ? '#FFF3B0' : '#1A1A2A');
-    sunFill.addColorStop(1, sunVisible ? '#E8C84A' : '#0A0A14');
-    ctx.fillStyle = sunFill; ctx.fill();
-
-    // ── MARKER LINE ──
-    ctx.strokeStyle = 'rgba(242,239,233,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
-    ctx.beginPath(); ctx.moveTo(sunX, chartTop); ctx.lineTo(sunX, chartBot); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // marker dot on solar curve
-    ctx.beginPath(); ctx.arc(sunX, yFromKW(sunH), 5, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(232,200,74,0.95)'; ctx.fill();
-    ctx.strokeStyle = '#0A0A0A'; ctx.lineWidth = 1.5; ctx.stroke();
-
-    // marker dot on usage curve
-    ctx.beginPath(); ctx.arc(sunX, yFromKW(usageKW(timeT)), 5, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(242,239,233,0.8)'; ctx.fill();
-    ctx.strokeStyle = '#0A0A0A'; ctx.lineWidth = 1.5; ctx.stroke();
-
-    // ── UPDATE INFO ──
-    const s = solarKW(timeT), u = usageKW(timeT);
-    const exp = s > u;
-    tlTime.textContent  = timeStr(timeT);
-    tlSolar.textContent = s.toFixed(1) + ' kW';
-    tlUsage.textContent = u.toFixed(1) + ' kW';
-    tlFlow.textContent  = s < 0.1 ? 'No solar' : exp ? 'Exporting' : 'Importing';
-    tlFlow.style.color  = s < 0.1 ? 'var(--gray)' : exp ? '#34D399' : '#38BDF8';
-    const creds = creditsUpTo(timeT);
-    tlCreds.textContent = creds > 0 ? '+' + creds.toFixed(1) + ' kWh' : '0.0 kWh';
-    tlCreds.style.color = creds > 0 ? '#34D399' : 'var(--gray)';
-
-    // ── EXPLAINER BLOCK ──
-    const net = s - u;
-    let icon, status, explanation, stateClass, netColor;
-
-    if (s < 0.1) {
-      icon        = '🌙';
-      status      = 'No solar — drawing from the grid';
-      explanation = 'The sun is down and your panels aren’t producing anything. Your home is running entirely on electricity from the utility grid. This is normal every night, and exactly why battery storage helps — a charged battery can cover this gap without touching the grid.';
-      stateClass  = 'nosolar';
-      netColor    = '#9CA3AF';
-    } else if (exp) {
-      const surplus = (s - u).toFixed(1);
-      icon        = '⚡';
-      status      = 'Exporting surplus to the grid';
-      explanation = `Right now your panels are making ${s.toFixed(1)} kW of electricity but your home only needs ${u.toFixed(1)} kW. The extra ${surplus} kW has nowhere to go inside your house — so it flows outward along the power line to the utility grid. Your meter runs backward and you earn a credit for every unit you send out. This is called net metering.`;
-      stateClass  = 'exporting';
-      netColor    = '#34D399';
-    } else {
-      const gap = (u - s).toFixed(1);
-      icon        = '🔌';
-      status      = 'Importing — panels not covering demand';
-      explanation = `Your panels are producing ${s.toFixed(1)} kW but your home is currently using ${u.toFixed(1)} kW. There’s a ${gap} kW shortfall. The grid automatically makes up the difference — you don’t notice anything, your lights stay on. But you are buying that gap at your normal electricity rate.`;
-      stateClass  = 'importing';
-      netColor    = '#38BDF8';
+    // animated energy pulses
+    for (let i = arrows.length - 1; i >= 0; i--) {
+      const a = arrows[i]; a.t += a.speed;
+      if (a.t >= 1) { arrows.splice(i, 1); continue; }
+      const ax    = a.hx * W + (sx - a.hx * W) * a.t;
+      const ay    = a.hy * H + (sy - a.hy * H) * a.t;
+      const alpha = Math.sin(a.t * Math.PI) * 0.9;
+      ctx.beginPath(); ctx.arc(ax, ay, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,200,74,${alpha})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,200,74,${alpha * 0.15})`; ctx.fill();
     }
 
-    if (noteEl)    noteEl.textContent    = explanation;
-    if (tlStatus)  tlStatus.textContent  = status;
-    if (tlIcon)    tlIcon.textContent    = icon;
-    if (tlNet) {
-      tlNet.textContent  = (net >= 0 ? '+' : '') + net.toFixed(1) + ' kW';
-      tlNet.style.color  = netColor;
-    }
-    if (explainer) {
-      explainer.className = 'tl-explainer ' + stateClass;
-    }
+    requestAnimationFrame(draw);
   }
 
-  // ── DRAG INTERACTION ──
-  canvas.addEventListener('pointerdown', e => {
-    dragging = true;
-    startX = e.clientX;
-    startT = timeT;
-    canvas.setPointerCapture(e.pointerId);
-    if (!hasDragged) { hasDragged = true; if (hint) hint.classList.add('hidden'); }
-  });
+  function update(v) {
+    solar = +v;
+    document.getElementById('mapVal').textContent = v + '%';
+    document.getElementById('mapR1').textContent  = v + '%';
+    const active = HOUSES.filter((_, i) => solar > 10 + i * 10).length;
+    document.getElementById('mapR2').textContent  = active;
+    const load = (active * (solar / 100) * 1.5).toFixed(0);
+    document.getElementById('mapR3').textContent  = (solar > 40 ? '−' : '+') + (+load) + ' kW';
+    document.getElementById('mapNote').textContent = solar > 60
+      ? 'Arrows flowing toward the substation — homes exporting surplus solar to the grid.'
+      : solar > 25 ? 'Mixed flow — some homes exporting, others drawing from the grid.'
+      : 'Minimal solar — neighbourhood drawing from the substation.';
+  }
 
-  window.addEventListener('pointermove', e => {
-    if (!dragging) return;
-    const dx = e.clientX - startX;
-    const W  = stage.offsetWidth - 62; // chartW approx
-    timeT = Math.max(0, Math.min(1, startT + dx / W));
-    draw();
-  });
-
-  window.addEventListener('pointerup', () => { dragging = false; });
-
-  function tick() { draw(); requestAnimationFrame(tick); }
-  tick();
+  document.getElementById('mapSlider').addEventListener('input', e => update(e.target.value));
+  update(80);
+  draw();
 })();
