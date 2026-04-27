@@ -10,6 +10,15 @@ let lightImgReady = false;
 lightImg.onload = () => { lightImgReady = true; };
 lightImg.src = 'visuals/light.svg';
 
+// Shared cloud SVG images for canvas-based cloud rendering
+const cloudImgs = [1, 2, 3, 4].map(i => {
+  const img = new Image();
+  img.ready = false;
+  img.onload = () => { img.ready = true; };
+  img.src = `visuals/Cloud_${i}.svg`;
+  return img;
+});
+
 const revObs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
 }, { threshold: 0.08 });
@@ -32,7 +41,6 @@ updateNav();
 (function () {
   const stage        = document.getElementById('photonStage');
   const canvas       = document.getElementById('photonCanvas');
-  const cloudSVG     = document.getElementById('cloudLayer');
   const slider       = document.getElementById('cloudSlider');
   const cloudVal     = document.getElementById('cloudVal');
   const pStatCloud   = document.getElementById('pStatCloud');
@@ -46,8 +54,6 @@ updateNav();
   const ctx = canvas.getContext('2d');
   let cloudCover = 0;
   let photons = [];
-
-  const CLOUD_SYMBOLS = ['#cloud-shape-1','#cloud-shape-2','#cloud-shape-3','#cloud-shape-4'];
 
   const CLOUD_ZONE = 0.5; // midpoint of stage
 
@@ -91,31 +97,23 @@ updateNav();
     { cx:0.99, cy:0.51, rx:0.05, ry:0.035 },
   ];
 
-  function drawClouds(W, H, cover) {
-    cloudSVG.setAttribute('width',  W);
-    cloudSVG.setAttribute('height', H);
-    cloudSVG.style.width  = W + 'px';
-    cloudSVG.style.height = H + 'px';
-    cloudSVG.innerHTML = '';
+  function drawCloudsOnCanvas(W, H, cover) {
     if (cover === 0) return;
 
-    // Show puffs proportionally to cover — at 100% all 20 show
     const visible = Math.max(1, Math.round(cover / 100 * CLOUD_PUFFS.length));
     const opacity = 0.38 + (cover / 100) * 0.45;
 
+    ctx.save();
     for (let i = 0; i < visible; i++) {
       const c = CLOUD_PUFFS[i];
       const cw = c.rx * W * 2.4;
       const ch = cw * 0.55;
-      const el = document.createElementNS('http://www.w3.org/2000/svg','use');
-      el.setAttribute('href', CLOUD_SYMBOLS[i % CLOUD_SYMBOLS.length]);
-      el.setAttribute('x', c.cx * W - cw / 2);
-      el.setAttribute('y', c.cy * H - ch / 2);
-      el.setAttribute('width', cw);
-      el.setAttribute('height', ch);
-      el.setAttribute('opacity', opacity);
-      cloudSVG.appendChild(el);
+      const img = cloudImgs[i % cloudImgs.length];
+      if (!img.ready) continue;
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(img, c.cx * W - cw / 2, c.cy * H - ch / 2, cw, ch);
     }
+    ctx.restore();
   }
 
   function spawnPhoton(W) {
@@ -161,6 +159,9 @@ updateNav();
     ctx.fillStyle = sunG; ctx.fillRect(0, 0, W, H);
 
     const cloudY = H * CLOUD_ZONE;
+
+    // Draw clouds on canvas at the cloud zone
+    drawCloudsOnCanvas(W, H, cloudCover);
 
     // Always spawn at full rate — cloud cover only affects whether they get through
     photons.push(spawnPhoton(W));
@@ -240,13 +241,11 @@ updateNav();
     else                        { cond = 'Dense Cloud';   note = 'Near-total blockage. This is exactly why battery storage is critical.'; }
     pStatCond.textContent = cond;
     noteEl.textContent    = note;
-    drawClouds(stage.offsetWidth, stage.offsetHeight, cloudCover);
   }
 
   slider.addEventListener('input', () => update(slider.value));
   update(0);
   tick();
-  window.addEventListener('resize', () => drawClouds(stage.offsetWidth, stage.offsetHeight, cloudCover));
 })();
 
 // ════════════════════════════════════
