@@ -4,6 +4,10 @@
 const sections  = ['hero','sunlight','cells','inverter','storage','grid'];
 const sideLinks = document.querySelectorAll('.side-link');
 
+// Shared light SVG image used as photon icon across all interactives
+const lightImg = new Image();
+lightImg.src = 'visuals/light.svg';
+
 const revObs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
 }, { threshold: 0.08 });
@@ -40,9 +44,6 @@ updateNav();
   const ctx = canvas.getContext('2d');
   let cloudCover = 0;
   let photons = [];
-
-  const lightImg = new Image();
-  lightImg.src = 'visuals/light.svg';
 
   const CLOUD_SYMBOLS = ['#cloud-shape-1','#cloud-shape-2','#cloud-shape-3','#cloud-shape-4'];
 
@@ -374,17 +375,19 @@ updateNav();
       ctx.fillStyle = `rgba(255,243,176,${ta})`; ctx.fill();
     }
 
-    // photon glow
-    const g = ctx.createRadialGradient(pX, pY, 0, pX, pY, 24);
-    g.addColorStop(0, 'rgba(255,250,200,0.75)');
-    g.addColorStop(0.4, 'rgba(232,200,74,0.35)');
-    g.addColorStop(1, 'rgba(232,200,74,0)');
-    ctx.beginPath(); ctx.arc(pX, pY, 24, 0, Math.PI*2);
-    ctx.fillStyle = g; ctx.fill();
-
-    // photon core
-    ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
-    ctx.fillStyle = '#FFFDE0'; ctx.fill();
+    // photon — light.svg icon with glow halo
+    const pSize = 32;
+    const pg = ctx.createRadialGradient(pX, pY, 0, pX, pY, pSize);
+    pg.addColorStop(0, 'rgba(232,200,74,0.3)');
+    pg.addColorStop(1, 'rgba(232,200,74,0)');
+    ctx.beginPath(); ctx.arc(pX, pY, pSize, 0, Math.PI*2);
+    ctx.fillStyle = pg; ctx.fill();
+    if (lightImg.complete && lightImg.naturalWidth) {
+      ctx.drawImage(lightImg, pX - 14, pY - 14, 28, 28);
+    } else {
+      ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
+      ctx.fillStyle = '#FFFDE0'; ctx.fill();
+    }
 
     // ── TRIGGER LAYER PARTICLES ──
     const currentId = LAYERS[li].id;
@@ -717,15 +720,18 @@ updateNav();
       ctx.beginPath(); ctx.arc(sunX, sunY, sunR*2.5, 0, Math.PI*2);
       ctx.fillStyle = sg; ctx.fill();
     }
-    ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
-    ctx.fillStyle = sunVisible
-      ? `radial-gradient(circle, #FFF3B0, #E8C84A)`
-      : 'rgba(242,239,233,0.12)';
-    // fallback solid fill
-    const sunFill = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
-    sunFill.addColorStop(0, sunVisible ? '#FFF3B0' : '#1A1A2A');
-    sunFill.addColorStop(1, sunVisible ? '#E8C84A' : '#0A0A14');
-    ctx.fillStyle = sunFill; ctx.fill();
+    if (lightImg.complete && lightImg.naturalWidth) {
+      ctx.save();
+      ctx.globalAlpha = sunVisible ? 1 : 0.2;
+      ctx.drawImage(lightImg, sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
+      ctx.restore();
+    } else {
+      const sunFill = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
+      sunFill.addColorStop(0, sunVisible ? '#FFF3B0' : '#1A1A2A');
+      sunFill.addColorStop(1, sunVisible ? '#E8C84A' : '#0A0A14');
+      ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
+      ctx.fillStyle = sunFill; ctx.fill();
+    }
 
     // ── MARKER LINE ──
     ctx.strokeStyle = 'rgba(242,239,233,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
