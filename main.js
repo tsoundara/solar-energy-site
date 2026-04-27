@@ -53,12 +53,7 @@ function updateNav() {
   const CLOUD_BTM = 120 * 0.35;
   const CLOUD_AR  = 40 / 68; // cloud symbol viewBox aspect ratio
 
-  const CLOUD_IMGS = [
-    'visuals/Cloud_1.svg',
-    'visuals/Cloud_2.svg',
-    'visuals/Cloud_3.svg',
-    'visuals/Cloud_4.svg',
-  ];
+  const CLOUD_SYMBOLS = ['#cloud-shape-1','#cloud-shape-2','#cloud-shape-3','#cloud-shape-4'];
 
   // ── SVG element pools ──
   const freePhotons = [];
@@ -68,8 +63,8 @@ function updateNav() {
       el.style.display = '';
       return el;
     }
-    const el = document.createElementNS(NS, 'image');
-    el.setAttribute('href', 'visuals/light.svg');
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('href', '#photon-shape');
     el.setAttribute('width', ICON_HALF * 2);
     el.setAttribute('height', ICON_HALF * 2);
     el.setAttribute('filter', 'url(#photon-glow)');
@@ -115,8 +110,8 @@ function updateNav() {
       const opacity = 0.55 + (cover / 100) * 0.35;
       const cw = c.scale * W;
       const ch = cw * 0.6;
-      const el = document.createElementNS(NS, 'image');
-      el.setAttribute('href', CLOUD_IMGS[i % CLOUD_IMGS.length]);
+      const el = document.createElementNS(NS, 'use');
+      el.setAttribute('href', CLOUD_SYMBOLS[i % CLOUD_SYMBOLS.length]);
       el.setAttribute('x', c.cx * W - cw / 2);
       el.setAttribute('y', c.cy * 120 - ch / 2);
       el.setAttribute('width', cw);
@@ -258,7 +253,7 @@ function updateNav() {
   let atoms = [];
   let animT = 0;
 
-  // Photon SVG element pool — <image href="visuals/light.svg"> elements
+  // Photon SVG element pool — reuses <use href="#photon-shape"> elements
   const freePhotons = [];
   function getPhotonEl() {
     if (freePhotons.length) {
@@ -266,8 +261,8 @@ function updateNav() {
       el.style.display = '';
       return el;
     }
-    const el = document.createElementNS(NS, 'image');
-    el.setAttribute('href', 'visuals/light.svg');
+    const el = document.createElementNS(NS, 'use');
+    el.setAttribute('href', '#photon-shape');
     el.setAttribute('width', ICON_HALF * 2);
     el.setAttribute('height', ICON_HALF * 2);
     el.setAttribute('filter', 'url(#photon-glow)');
