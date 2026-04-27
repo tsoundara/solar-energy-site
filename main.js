@@ -41,6 +41,9 @@ updateNav();
   let cloudCover = 0;
   let photons = [];
 
+  const lightImg = new Image();
+  lightImg.src = 'visuals/light.svg';
+
   const CLOUD_ZONE = 0.5; // midpoint of stage
 
   // Panel hit zone — wide band covering the bottom ~30% of the canvas.
@@ -91,18 +94,20 @@ updateNav();
     cloudSVG.innerHTML = '';
     if (cover === 0) return;
 
-    // Show puffs proportionally to cover — at 100% all 20 show
     const visible = Math.max(1, Math.round(cover / 100 * CLOUD_PUFFS.length));
     const opacity = 0.38 + (cover / 100) * 0.45;
 
     for (let i = 0; i < visible; i++) {
       const c = CLOUD_PUFFS[i];
-      const el = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-      el.setAttribute('cx', c.cx * W);
-      el.setAttribute('cy', c.cy * H);
-      el.setAttribute('rx', c.rx * W);
-      el.setAttribute('ry', c.ry * H);
-      el.setAttribute('fill', `rgba(155,160,178,${opacity})`);
+      const imgW = c.rx * W * 2.2;
+      const imgH = imgW * 0.55;
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+      el.setAttribute('href', 'visuals/cloud.svg');
+      el.setAttribute('x', c.cx * W - imgW / 2);
+      el.setAttribute('y', c.cy * H - imgH / 2);
+      el.setAttribute('width',  imgW);
+      el.setAttribute('height', imgH);
+      el.setAttribute('opacity', opacity);
       cloudSVG.appendChild(el);
     }
   }
@@ -190,17 +195,19 @@ updateNav();
         continue;
       }
 
-      // Draw photon — all photons look the same while falling
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(232,200,74,${p.alpha * 0.1})`;
-      ctx.fill();
-      // end of draw — blocked ones will be removed at cloud zone on next frame
+      // Draw photon as light.svg icon
+      const size = p.r * 7;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      if (lightImg.complete && lightImg.naturalWidth) {
+        ctx.drawImage(lightImg, p.x - size / 2, p.y - size / 2, size, size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
+        ctx.fill();
+      }
+      ctx.restore();
     }
 
     if (photons.length > 400) photons.splice(0, photons.length - 400);
