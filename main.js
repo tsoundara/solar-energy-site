@@ -4,6 +4,21 @@
 const sections  = ['hero','sunlight','cells','inverter','storage','grid'];
 const sideLinks = document.querySelectorAll('.side-link');
 
+// Shared light SVG image used as photon icon across all interactives
+const lightImg = new Image();
+let lightImgReady = false;
+lightImg.onload = () => { lightImgReady = true; };
+lightImg.src = 'visuals/light.svg';
+
+// Shared cloud SVG images for canvas-based cloud rendering
+const cloudImgs = [1, 2, 3, 4].map(i => {
+  const img = new Image();
+  img.ready = false;
+  img.onload = () => { img.ready = true; };
+  img.src = `visuals/Cloud_${i}.svg`;
+  return img;
+});
+
 const revObs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
 }, { threshold: 0.08 });
@@ -26,7 +41,6 @@ updateNav();
 (function () {
   const stage        = document.getElementById('photonStage');
   const canvas       = document.getElementById('photonCanvas');
-  const cloudSVG     = document.getElementById('cloudLayer');
   const slider       = document.getElementById('cloudSlider');
   const cloudVal     = document.getElementById('cloudVal');
   const pStatCloud   = document.getElementById('pStatCloud');
@@ -83,28 +97,23 @@ updateNav();
     { cx:0.99, cy:0.51, rx:0.05, ry:0.035 },
   ];
 
-  function drawClouds(W, H, cover) {
-    cloudSVG.setAttribute('width',  W);
-    cloudSVG.setAttribute('height', H);
-    cloudSVG.style.width  = W + 'px';
-    cloudSVG.style.height = H + 'px';
-    cloudSVG.innerHTML = '';
+  function drawCloudsOnCanvas(W, H, cover) {
     if (cover === 0) return;
 
-    // Show puffs proportionally to cover — at 100% all 20 show
     const visible = Math.max(1, Math.round(cover / 100 * CLOUD_PUFFS.length));
     const opacity = 0.38 + (cover / 100) * 0.45;
 
+    ctx.save();
     for (let i = 0; i < visible; i++) {
       const c = CLOUD_PUFFS[i];
-      const el = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-      el.setAttribute('cx', c.cx * W);
-      el.setAttribute('cy', c.cy * H);
-      el.setAttribute('rx', c.rx * W);
-      el.setAttribute('ry', c.ry * H);
-      el.setAttribute('fill', `rgba(155,160,178,${opacity})`);
-      cloudSVG.appendChild(el);
+      const cw = c.rx * W * 2.4;
+      const ch = cw * 0.55;
+      const img = cloudImgs[i % cloudImgs.length];
+      if (!img.ready) continue;
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(img, c.cx * W - cw / 2, c.cy * H - ch / 2, cw, ch);
     }
+    ctx.restore();
   }
 
   function spawnPhoton(W) {
@@ -151,6 +160,9 @@ updateNav();
 
     const cloudY = H * CLOUD_ZONE;
 
+    // Draw clouds on canvas at the cloud zone
+    drawCloudsOnCanvas(W, H, cloudCover);
+
     // Always spawn at full rate — cloud cover only affects whether they get through
     photons.push(spawnPhoton(W));
     if (Math.random() < 0.4) photons.push(spawnPhoton(W)); // occasional double spawn for density
@@ -190,17 +202,19 @@ updateNav();
         continue;
       }
 
-      // Draw photon — all photons look the same while falling
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(232,200,74,${p.alpha * 0.1})`;
-      ctx.fill();
-      // end of draw — blocked ones will be removed at cloud zone on next frame
+      // Draw photon as light.svg icon
+      const size = p.r * 7;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      if (lightImgReady) {
+        ctx.drawImage(lightImg, p.x - size / 2, p.y - size / 2, size, size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,240,140,${p.alpha})`;
+        ctx.fill();
+      }
+      ctx.restore();
     }
 
     if (photons.length > 400) photons.splice(0, photons.length - 400);
@@ -227,13 +241,11 @@ updateNav();
     else                        { cond = 'Dense Cloud';   note = 'Near-total blockage. This is exactly why battery storage is critical.'; }
     pStatCond.textContent = cond;
     noteEl.textContent    = note;
-    drawClouds(stage.offsetWidth, stage.offsetHeight, cloudCover);
   }
 
   slider.addEventListener('input', () => update(slider.value));
   update(0);
   tick();
-  window.addEventListener('resize', () => drawClouds(stage.offsetWidth, stage.offsetHeight, cloudCover));
 })();
 
 // ════════════════════════════════════
@@ -364,17 +376,19 @@ updateNav();
       ctx.fillStyle = `rgba(255,243,176,${ta})`; ctx.fill();
     }
 
-    // photon glow
-    const g = ctx.createRadialGradient(pX, pY, 0, pX, pY, 24);
-    g.addColorStop(0, 'rgba(255,250,200,0.75)');
-    g.addColorStop(0.4, 'rgba(232,200,74,0.35)');
-    g.addColorStop(1, 'rgba(232,200,74,0)');
-    ctx.beginPath(); ctx.arc(pX, pY, 24, 0, Math.PI*2);
-    ctx.fillStyle = g; ctx.fill();
-
-    // photon core
-    ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
-    ctx.fillStyle = '#FFFDE0'; ctx.fill();
+    // photon — light.svg icon with glow halo
+    const pSize = 32;
+    const pg = ctx.createRadialGradient(pX, pY, 0, pX, pY, pSize);
+    pg.addColorStop(0, 'rgba(232,200,74,0.3)');
+    pg.addColorStop(1, 'rgba(232,200,74,0)');
+    ctx.beginPath(); ctx.arc(pX, pY, pSize, 0, Math.PI*2);
+    ctx.fillStyle = pg; ctx.fill();
+    if (lightImgReady) {
+      ctx.drawImage(lightImg, pX - 14, pY - 14, 28, 28);
+    } else {
+      ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
+      ctx.fillStyle = '#FFFDE0'; ctx.fill();
+    }
 
     // ── TRIGGER LAYER PARTICLES ──
     const currentId = LAYERS[li].id;
@@ -707,14 +721,10 @@ updateNav();
       ctx.beginPath(); ctx.arc(sunX, sunY, sunR*2.5, 0, Math.PI*2);
       ctx.fillStyle = sg; ctx.fill();
     }
-    ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
-    ctx.fillStyle = sunVisible
-      ? `radial-gradient(circle, #FFF3B0, #E8C84A)`
-      : 'rgba(242,239,233,0.12)';
-    // fallback solid fill
     const sunFill = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
     sunFill.addColorStop(0, sunVisible ? '#FFF3B0' : '#1A1A2A');
     sunFill.addColorStop(1, sunVisible ? '#E8C84A' : '#0A0A14');
+    ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2);
     ctx.fillStyle = sunFill; ctx.fill();
 
     // ── MARKER LINE ──
