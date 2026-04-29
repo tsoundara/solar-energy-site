@@ -203,7 +203,7 @@ updateNav();
       }
 
       // Draw photon as light.svg icon
-      const size = p.r * 7;
+      const size = p.r * 11;
       ctx.save();
       ctx.globalAlpha = p.alpha;
       if (lightImgReady) {
@@ -377,14 +377,14 @@ updateNav();
     }
 
     // photon — light.svg icon with glow halo
-    const pSize = 32;
+    const pSize = 44;
     const pg = ctx.createRadialGradient(pX, pY, 0, pX, pY, pSize);
     pg.addColorStop(0, 'rgba(232,200,74,0.3)');
     pg.addColorStop(1, 'rgba(232,200,74,0)');
     ctx.beginPath(); ctx.arc(pX, pY, pSize, 0, Math.PI*2);
     ctx.fillStyle = pg; ctx.fill();
     if (lightImgReady) {
-      ctx.drawImage(lightImg, pX - 14, pY - 14, 28, 28);
+      ctx.drawImage(lightImg, pX - 20, pY - 20, 40, 40);
     } else {
       ctx.beginPath(); ctx.arc(pX, pY, 5, 0, Math.PI*2);
       ctx.fillStyle = '#FFFDE0'; ctx.fill();
